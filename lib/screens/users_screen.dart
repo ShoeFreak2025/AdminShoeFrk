@@ -179,7 +179,7 @@ class _UsersScreenState extends State<UsersScreen> {
                     final picker = ImagePicker();
                     final file = await picker.pickImage(source: ImageSource.gallery);
                     if (file != null) {
-                      final bytes = await file.readAsBytes(); // Read bytes for preview
+                      final bytes = await file.readAsBytes();
                       setDialogState(() {
                         pickedImage = file;
                         previewImageBytes = bytes;

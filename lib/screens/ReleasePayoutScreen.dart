@@ -71,7 +71,7 @@ class _ReleasePayoutScreenState extends State<ReleasePayoutScreen> {
       url,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${session.accessToken}', // ✅ Include token
+        'Authorization': 'Bearer ${session.accessToken}',
       },
       body: jsonEncode({'transaction_id': transactionId}),
     );
@@ -93,13 +93,11 @@ class _ReleasePayoutScreenState extends State<ReleasePayoutScreen> {
   Future<void> _refundToBuyer(String transactionId) async {
     print("🔄 Initiating refund process for transaction: $transactionId");
     print("DEBUG: transactionId being queried: $transactionId");
-    // ✅ Step 1: Fetch transaction to get typeofSeller
     final txn = await supabase
         .from('transactions')
         .select('typeofSeller')
-        .eq('id', transactionId) // ✅ use correct column name
+        .eq('id', transactionId)
         .maybeSingle();
-    // returns Map<String, dynamic>? directly
 
     if (txn == null) {
       print("❌ Transaction not found or query failed");
@@ -122,7 +120,6 @@ class _ReleasePayoutScreenState extends State<ReleasePayoutScreen> {
     final String typeofSeller = txn['typeofSeller'] as String;
     print("🔍 typeofSeller = $typeofSeller");
 
-    // ✅ Step 2: Choose the correct Edge Function URL
     final String endpoint = (typeofSeller.toLowerCase() == 'seller')
         ? 'Refund'
         : 'Refund-Artist';
@@ -131,7 +128,6 @@ class _ReleasePayoutScreenState extends State<ReleasePayoutScreen> {
     final url = Uri.parse(
         'https://mnrqpptcreskqnynhevx.supabase.co/functions/v1/$endpoint');
 
-    // ✅ Step 3: Get access token
     final session = supabase.auth.currentSession;
     final accessToken = session?.accessToken;
 
@@ -143,7 +139,6 @@ class _ReleasePayoutScreenState extends State<ReleasePayoutScreen> {
       return;
     }
 
-    // ✅ Step 4: Call Edge Function
     print("🚀 Sending refund request to $url");
     final response = await http.post(
       url,
@@ -157,7 +152,6 @@ class _ReleasePayoutScreenState extends State<ReleasePayoutScreen> {
     final Map<String, dynamic> result = jsonDecode(response.body);
     print("📡 Edge Function response [${response.statusCode}]: $result");
 
-    // ✅ Step 5: Handle response
     if (response.statusCode == 200) {
       print("✅ Refund processed successfully");
       ScaffoldMessenger.of(context).showSnackBar(

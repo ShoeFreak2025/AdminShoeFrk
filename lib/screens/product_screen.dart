@@ -10,7 +10,7 @@ class ProductScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 4, // Increased from 3 to 4
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Manage Products'),
@@ -20,7 +20,7 @@ class ProductScreen extends StatelessWidget {
               Tab(icon: Icon(Icons.shopping_bag), text: 'Shoes'),
               Tab(icon: Icon(Icons.brush), text: 'Artworks'),
               Tab(icon: Icon(Icons.report), text: 'Reported'),
-              Tab(icon: Icon(Icons.list_alt), text: 'Orders'), // New Orders tab
+              Tab(icon: Icon(Icons.list_alt), text: 'Orders'),
             ],
           ),
         ),
@@ -29,7 +29,7 @@ class ProductScreen extends StatelessWidget {
             ShoesTab(),
             ArtworksTab(),
             ReportedShoesTab(),
-            OrdersTab(), // Add OrdersTab here
+            OrdersTab(),
           ],
         ),
       ),

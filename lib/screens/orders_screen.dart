@@ -62,7 +62,6 @@ class _OrdersTabState extends State<OrdersTab> {
       })
           .eq('id', orderId);
 
-      // Refresh orders list
       await fetchOrders();
     } catch (e) {
       debugPrint('Error updating order: $e');

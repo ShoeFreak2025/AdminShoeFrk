@@ -20,7 +20,7 @@ class ProductScreen extends StatelessWidget {
               Tab(icon: Icon(Icons.shopping_bag), text: 'Shoes'),
               Tab(icon: Icon(Icons.brush), text: 'Artworks'),
               Tab(icon: Icon(Icons.report), text: 'Reported'),
-              Tab(icon: Icon(Icons.list_alt), text: 'Orders'),
+              Tab(icon: Icon(Icons.receipt_long), text: 'Orders')
             ],
           ),
         ),

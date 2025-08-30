@@ -52,16 +52,35 @@ class _OrdersTabState extends State<OrdersTab> {
     }
   }
 
-  Future<void> updateOrderStatus(String orderId, OrderStatus status, {String? trackingNumber}) async {
+  Future<void> updateOrderStatus(
+      String orderId,
+      OrderStatus status, {
+        String? trackingNumber,
+      }) async {
     try {
-      await supabase
-          .from('orders')
-          .update({
+      await supabase.from('orders').update({
         'status': status.name,
         if (trackingNumber != null) 'tracking_number': trackingNumber,
         'updated_at': DateTime.now().toIso8601String(),
-      })
-          .eq('id', orderId);
+      }).eq('id', orderId);
+
+      final logRes = await supabase.functions.invoke(
+        'log_action',
+        body: {
+          'admin_id': supabase.auth.currentUser?.id,
+          'action': 'update_order_status',
+          'target_id': orderId,
+          'target_type': 'order',
+          'details': {
+            'new_status': status.name,
+            if (trackingNumber != null) 'tracking_number': trackingNumber,
+          },
+        },
+      );
+
+      if (logRes.status != 200) {
+        debugPrint("⚠️ Log failed [${logRes.status}]: ${logRes.data}");
+      }
 
       await fetchOrders();
     } catch (e) {

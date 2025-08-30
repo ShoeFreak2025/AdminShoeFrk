@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:shoefrk_admin/utils/admin_logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -51,6 +52,13 @@ class _UsersScreenState extends State<UsersScreen> {
     try {
       await supabase.from('users').update({'is_deleted': !currentValue}).eq('id', userId);
       _loadUsers();
+
+      await AdminLogger.logAction(
+        action: "toggle_user_status",
+        targetId: userId,
+        targetType: "user",
+        details: {"new_status": !currentValue},
+      );
     } catch (e) {
       _showErrorSnackBar('Failed to update user: $e');
     }
@@ -104,6 +112,13 @@ class _UsersScreenState extends State<UsersScreen> {
           'is_admin': updatedRoles.contains('admin'),
         }).eq('id', user['id']);
         _loadUsers();
+
+        await AdminLogger.logAction(
+          action: "edit_user_roles",
+          targetId: user['id'].toString(),
+          targetType: "user",
+          details: {"roles": updatedRoles},
+        );
       } catch (e) {
         _showErrorSnackBar('Failed to update roles: $e');
       }
@@ -139,6 +154,14 @@ class _UsersScreenState extends State<UsersScreen> {
           'content': 'Post reported',
           'is_read': false,
         });
+
+        await AdminLogger.logAction(
+          action: "report_post",
+          targetId: post['id'].toString(),
+          targetType: "post",
+          details: {"reported_by": user.id},
+        );
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Post reported successfully')));
         }
@@ -212,6 +235,16 @@ class _UsersScreenState extends State<UsersScreen> {
                     'updated_at': DateTime.now().toIso8601String()
                   }).eq('id', post['id']);
 
+                  await AdminLogger.logAction(
+                    action: "edit_post",
+                    targetId: post['id'].toString(),
+                    targetType: "post",
+                    details: {
+                      "new_content": controller.text.trim(),
+                      "updated_media": newImageUrl ?? currentImageUrl
+                    },
+                  );
+
                   Navigator.pop(context);
                   onPostUpdated();
                 } catch (e) {
@@ -277,6 +310,13 @@ class _UsersScreenState extends State<UsersScreen> {
                                 try {
                                   await supabase.from('social_posts').update({'is_deleted': newValue}).eq('id', post['id']);
                                   setDialogState(() => post['is_deleted'] = newValue);
+                                  await AdminLogger.logAction(
+                                    action: "toggle_post_status",
+                                    targetId: post['id'].toString(),
+                                    targetType: "post",
+                                    details: {"new_status": newValue},
+                                  );
+
                                 } catch (e) {
                                   _showErrorSnackBar('Failed to update post status: $e');
                                 }

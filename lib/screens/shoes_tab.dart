@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shoefrk_admin/utils/admin_logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ShoesTab extends StatefulWidget {
@@ -210,6 +211,18 @@ class _ShoesTabState extends State<ShoesTab> {
                   'color': _selectedColors,
                   'image_urls': imageUrls,
                 }).eq('id', shoe['id']);
+
+                await AdminLogger.logAction(
+                  action: "edit_shoe",
+                  targetId: shoe['id'].toString(),
+                  targetType: "shoe",
+                  details: {
+                    "name": _nameController.text.trim(),
+                    "brand": _brandController.text.trim(),
+                    "price": _priceController.text.trim(),
+                  },
+                );
+
                 Navigator.pop(context);
                 _loadShoes();
               },
@@ -227,6 +240,16 @@ class _ShoesTabState extends State<ShoesTab> {
         .from('shoes')
         .update({'status': newStatus})
         .eq('id', shoe['id']);
+
+    await AdminLogger.logAction(
+      action: "toggle_shoe_status",
+      targetId: shoe['id'].toString(),
+      targetType: "shoe",
+      details: {
+        "old_status": shoe['status'],
+        "new_status": newStatus,
+      },
+    );
 
     _loadShoes();
   }
@@ -263,6 +286,16 @@ class _ShoesTabState extends State<ShoesTab> {
                   'is_read': false,
                 });
 
+                await AdminLogger.logAction(
+                  action: "report_shoe",
+                  targetId: shoe['id'].toString(),
+                  targetType: "shoe",
+                  details: {
+                    "reason": reason,
+                    "reported_by": user.id,
+                  },
+                );
+
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Shoe reported successfully')),
@@ -285,7 +318,42 @@ class _ShoesTabState extends State<ShoesTab> {
       itemBuilder: (context, index) {
         final shoe = _shoes[index];
         return ListTile(
-          leading: const Icon(Icons.shopping_bag),
+          leading: (shoe['image_urls'] != null && (shoe['image_urls'] as List).isNotEmpty)
+              ? GestureDetector(
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (_) => Dialog(
+                  insetPadding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.8,
+                    height: MediaQuery.of(context).size.height * 0.5,
+                    child: PageView(
+                      children: (shoe['image_urls'] as List)
+                          .map<Widget>((url) => InteractiveViewer(
+                        child: Image.network(
+                          url,
+                          fit: BoxFit.contain,
+                        ),
+                      ))
+                          .toList(),
+                    ),
+                  ),
+                ),
+              );
+            },
+
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Image.network(
+                shoe['image_urls'][0],
+                width: 60,
+                height: 60,
+                fit: BoxFit.cover,
+              ),
+            ),
+          )
+              : const Icon(Icons.shopping_bag),
           title: Text(shoe['shoe_name'] ?? 'Unnamed'),
           subtitle: Text('${shoe['brand']} - ₱${shoe['price']}'),
           trailing: Row(

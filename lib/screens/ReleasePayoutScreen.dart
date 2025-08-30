@@ -65,7 +65,8 @@ class _ReleasePayoutScreenState extends State<ReleasePayoutScreen> {
     }
 
     final url = Uri.parse(
-        'https://mnrqpptcreskqnynhevx.supabase.co/functions/v1/release-to-seller');
+      'https://mnrqpptcreskqnynhevx.supabase.co/functions/v1/release-to-seller',
+    );
 
     final response = await http.post(
       url,
@@ -82,6 +83,18 @@ class _ReleasePayoutScreenState extends State<ReleasePayoutScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result['message'] ?? '✅ Seller paid successfully')),
       );
+
+      await supabase.functions.invoke(
+        'log_action',
+        body: {
+          'admin_id': session.user.id,
+          'action': 'release_payout',
+          'target_id': transactionId,
+          'target_type': 'transaction',
+          'details': {'result': result},
+        },
+      );
+
       _loadPendingTransactions();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -92,7 +105,7 @@ class _ReleasePayoutScreenState extends State<ReleasePayoutScreen> {
 
   Future<void> _refundToBuyer(String transactionId) async {
     print("🔄 Initiating refund process for transaction: $transactionId");
-    print("DEBUG: transactionId being queried: $transactionId");
+
     final txn = await supabase
         .from('transactions')
         .select('typeofSeller')
@@ -100,7 +113,7 @@ class _ReleasePayoutScreenState extends State<ReleasePayoutScreen> {
         .maybeSingle();
 
     if (txn == null) {
-      print("❌ Transaction not found or query failed");
+      print("❌ Transaction not found");
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('❌ Transaction not found')),
       );
@@ -110,9 +123,9 @@ class _ReleasePayoutScreenState extends State<ReleasePayoutScreen> {
     print("✅ Transaction data fetched: $txn");
 
     if (txn['typeofSeller'] == null) {
-      print("❌ typeofSeller not found in transaction");
+      print("❌ typeofSeller missing in transaction");
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('❌ typeofSeller not found for this transaction')),
+        const SnackBar(content: Text('❌ typeofSeller not found')),
       );
       return;
     }
@@ -120,26 +133,26 @@ class _ReleasePayoutScreenState extends State<ReleasePayoutScreen> {
     final String typeofSeller = txn['typeofSeller'] as String;
     print("🔍 typeofSeller = $typeofSeller");
 
-    final String endpoint = (typeofSeller.toLowerCase() == 'seller')
-        ? 'Refund'
-        : 'Refund-Artist';
-
-    print("🌐 Using Edge Function endpoint: $endpoint");
-    final url = Uri.parse(
-        'https://mnrqpptcreskqnynhevx.supabase.co/functions/v1/$endpoint');
+    final String endpoint =
+    (typeofSeller.toLowerCase() == 'seller') ? 'Refund' : 'Refund-Artist';
 
     final session = supabase.auth.currentSession;
-    final accessToken = session?.accessToken;
-
-    if (accessToken == null) {
-      print("❌ No access token found. User not authenticated.");
+    if (session == null || session.user == null) {
+      print("❌ No authenticated admin session found.");
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('❌ Not authenticated')),
       );
       return;
     }
 
+    final adminId = session.user!.id;
+    final accessToken = session.accessToken;
+
+    final url = Uri.parse(
+        'https://mnrqpptcreskqnynhevx.supabase.co/functions/v1/$endpoint');
+
     print("🚀 Sending refund request to $url");
+
     final response = await http.post(
       url,
       headers: {
@@ -155,8 +168,24 @@ class _ReleasePayoutScreenState extends State<ReleasePayoutScreen> {
     if (response.statusCode == 200) {
       print("✅ Refund processed successfully");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? '✅ Buyer refunded successfully')),
+        SnackBar(
+            content: Text(result['message'] ?? '✅ Buyer refunded successfully')),
       );
+
+      await supabase.functions.invoke(
+        'log_action',
+        body: {
+          'admin_id': adminId,
+          'action': 'refund_buyer',
+          'target_id': transactionId,
+          'target_type': 'transaction',
+          'details': {
+            'typeofSeller': typeofSeller,
+            'result': result,
+          },
+        },
+      );
+
       _loadPendingTransactions();
     } else {
       print("❌ Refund failed: ${result['error'] ?? 'Unknown error'}");

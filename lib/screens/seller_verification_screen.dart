@@ -40,6 +40,16 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen> {
         String? reason,
         String? appType,
       }) async {
+    final session = supabase.auth.currentSession;
+
+    if (session == null || session.user == null) {
+      print("❌ No authenticated admin session found.");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('❌ Not authenticated')),
+      );
+      return;
+    }
+
     await supabase.from('seller_applications').update({
       'status': status,
       if (reason != null) 'reason': reason,
@@ -57,8 +67,8 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen> {
     String title = appType == 'artist' ? 'Artist Verification' : 'Seller Verification';
     String content = (status == 'approved')
         ? 'Your $roleToAssign application has been approved! You can now upload and sell your $roleToAssign works.'
-        : 'Your $roleToAssign application has been rejected.' +
-        (reason != null ? ' Reason: $reason' : '');
+        : 'Your $roleToAssign application has been rejected.'
+        '${reason != null ? ' Reason: $reason' : ''}';
 
     await supabase.from('notifications').insert({
       'user_id': userId,
@@ -66,6 +76,23 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen> {
       'content': content,
       'is_read': false,
     });
+
+    final adminId = session.user!.id;
+    await supabase.functions.invoke(
+      'log-admin-action',
+      body: {
+        'admin_id': adminId,
+        'action': (status == 'approved') ? 'approve_application' : 'reject_application',
+        'target_id': appId,
+        'target_type': 'seller_application',
+        'details': {
+          'appType': appType,
+          'status': status,
+          if (reason != null) 'reason': reason,
+          'assigned_role': (status == 'approved') ? roleToAssign : null,
+        },
+      },
+    );
 
     _fetchApplications();
   }

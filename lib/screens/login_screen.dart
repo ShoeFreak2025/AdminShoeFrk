@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shoefrk_admin/utils/responsive_util.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -13,6 +14,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final supabase = Supabase.instance.client;
+
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -57,21 +59,40 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         _errorMessage = error.message;
       });
-    } catch (error) {
+    } catch (_) {
       setState(() {
         _errorMessage = 'An unexpected error occurred';
       });
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final double cardPadding = ResponsiveUtil.responsiveValue(
+      context: context,
+      mobile: 24,
+      tablet: 32,
+      desktop: 40,
+    );
+
+    final double iconSize = ResponsiveUtil.responsiveValue(
+      context: context,
+      mobile: 56,
+      tablet: 64,
+      desktop: 72,
+    );
+
+    final double maxCardWidth = ResponsiveUtil.responsiveValue(
+      context: context,
+      mobile: 380,
+      tablet: 480,
+      desktop: 560,
+    );
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -86,15 +107,15 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         child: Center(
           child: SingleChildScrollView(
+            padding: EdgeInsets.all(cardPadding),
             child: Card(
-              margin: const EdgeInsets.all(20),
               elevation: 8,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Container(
-                constraints: const BoxConstraints(maxWidth: 400),
-                padding: const EdgeInsets.all(32),
+                constraints: BoxConstraints(maxWidth: maxCardWidth),
+                padding: EdgeInsets.all(cardPadding),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -102,12 +123,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       Icon(
                         Icons.admin_panel_settings,
-                        size: 64,
+                        size: iconSize,
                         color: Colors.blue.shade700,
                       ),
                       const SizedBox(height: 16),
                       Text(
                         'Admin Dashboard',
+                        textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: Colors.blue.shade700,
@@ -116,11 +138,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 8),
                       Text(
                         'Sign in to access the admin panel',
+                        textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Colors.grey.shade600,
                         ),
                       ),
                       const SizedBox(height: 32),
+
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
@@ -133,13 +157,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           if (value == null || value.isEmpty) {
                             return 'Please enter your email';
                           }
-                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                              .hasMatch(value)) {
                             return 'Please enter a valid email';
                           }
                           return null;
                         },
                       ),
                       const SizedBox(height: 16),
+
                       TextFormField(
                         controller: _passwordController,
                         obscureText: true,
@@ -155,6 +181,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           return null;
                         },
                       ),
+
                       if (_errorMessage != null) ...[
                         const SizedBox(height: 16),
                         Container(
@@ -166,7 +193,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.error, color: Colors.red.shade600, size: 20),
+                              Icon(Icons.error,
+                                  color: Colors.red.shade600, size: 20),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
@@ -200,12 +228,16 @@ class _LoginScreenState extends State<LoginScreen> {
                             width: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white),
                             ),
                           )
                               : const Text(
                             'Sign In',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),

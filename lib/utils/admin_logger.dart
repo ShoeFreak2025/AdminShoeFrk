@@ -4,7 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class AdminLogger {
   static final _supabase = Supabase.instance.client;
 
-  /// Logs an admin action by calling the `log_action` Edge Function.
   static Future<void> logAction({
     required String action,
     required String targetId,

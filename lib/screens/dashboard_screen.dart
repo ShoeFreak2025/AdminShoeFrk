@@ -4,6 +4,7 @@ import 'package:shoefrk_admin/screens/ReleasePayoutScreen.dart';
 import 'package:shoefrk_admin/screens/product_screen.dart';
 import 'package:shoefrk_admin/screens/seller_verification_screen.dart';
 import 'package:shoefrk_admin/screens/users_screen.dart';
+import 'package:shoefrk_admin/utils/responsive_util.dart';
 import 'package:shoefrk_admin/widgets/ActiveSellersWidget.dart';
 import 'package:shoefrk_admin/widgets/sidebar_widget.dart';
 import 'package:shoefrk_admin/widgets/stats_card.dart';
@@ -210,8 +211,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: SidebarWidget(onNavigate: _handleNavigation),
-      appBar: AppBar(
+      drawer: ResponsiveUtil.isDesktop(context)
+          ? null
+          : SidebarWidget(onNavigate: _handleNavigation),
+      appBar: ResponsiveUtil.isDesktop(context)
+          ? null
+          : AppBar(
         title: const Text(
           'Admin Dashboard',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -228,16 +233,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
           TextButton.icon(
             onPressed: _showAnnouncementDialog,
             icon: const Icon(Icons.announcement, color: Colors.white),
-            label: const Text('Announce', style: TextStyle(color: Colors.white)),
+            label: const Text('Announce',
+                style: TextStyle(color: Colors.white)),
           ),
           const SizedBox(width: 16),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-          ? _buildError()
-          : _buildDashboard(),
+      body: Row(
+        children: [
+          if (ResponsiveUtil.isDesktop(context))
+            SidebarWidget(onNavigate: _handleNavigation),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _errorMessage != null
+                ? _buildError()
+                : _buildDashboard(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -269,12 +283,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       color: Colors.grey.shade100,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(
+          ResponsiveUtil.responsiveValue<double>(
+            context: context,
+            mobile: 12,
+            tablet: 20,
+            desktop: 24,
+          ),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(
+                ResponsiveUtil.responsiveValue<double>(
+                  context: context,
+                  mobile: 12,
+                  tablet: 20,
+                  desktop: 24,
+                ),
+              ),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
@@ -289,14 +317,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.dashboard, size: 48, color: Colors.blue.shade600),
+                  Icon(
+                    Icons.dashboard,
+                    size: ResponsiveUtil.responsiveValue<double>(
+                      context: context,
+                      mobile: 36,
+                      tablet: 42,
+                      desktop: 48,
+                    ),
+                    color: Colors.blue.shade600,
+                  ),
                   const SizedBox(width: 16),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Welcome to Admin Dashboard',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        style: TextStyle(
+                          fontSize: ResponsiveUtil.responsiveValue<double>(
+                            context: context,
+                            mobile: 16,
+                            tablet: 18,
+                            desktop: 20,
+                          ),
                           fontWeight: FontWeight.bold,
                           color: Colors.grey.shade800,
                         ),
@@ -304,7 +347,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const SizedBox(height: 4),
                       Text(
                         'Monitor your marketplace performance',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        style: TextStyle(
+                          fontSize: ResponsiveUtil.responsiveValue<double>(
+                            context: context,
+                            mobile: 12,
+                            tablet: 14,
+                            desktop: 16,
+                          ),
                           color: Colors.grey.shade600,
                         ),
                       ),
@@ -313,14 +362,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+
+            SizedBox(
+              height: ResponsiveUtil.responsiveValue<double>(
+                context: context,
+                mobile: 16,
+                tablet: 20,
+                desktop: 24,
+              ),
+            ),
+
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: MediaQuery.of(context).size.width > 800 ? 4 : 2,
+              crossAxisCount: ResponsiveUtil.responsiveValue<int>(
+                context: context,
+                mobile: 2,
+                tablet: 3,
+                desktop: 4,
+              ),
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
-              childAspectRatio: 3,
+              childAspectRatio: ResponsiveUtil.responsiveValue<double>(
+                context: context,
+                mobile: 1.2,
+                tablet: 1.6,
+                desktop: 2.0,
+              ),
               children: [
                 StatsCard(
                   title: 'Total Sellers',
@@ -360,15 +428,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 32),
-            if (MediaQuery.of(context).size.width > 800)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: TopItemsWidget()),
-                  const SizedBox(width: 24),
-                  Expanded(child: ActiveSellersWidget(sellers: _stats!.activeSellers)),
-                ],
+            SizedBox(
+              height: ResponsiveUtil.responsiveValue<double>(
+                context: context,
+                mobile: 24,
+                tablet: 28,
+                desktop: 32,
+              ),
+            ),
+
+            if (ResponsiveUtil.isDesktop(context))
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: TopItemsWidget()),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      child: ActiveSellersWidget(sellers: _stats!.activeSellers),
+                    ),
+                  ],
+                ),
               )
             else
               Column(

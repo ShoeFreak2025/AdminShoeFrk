@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shoefrk_admin/utils/responsive_util.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SellerVerificationScreen extends StatefulWidget {
@@ -115,29 +116,62 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen> {
           final user = app['users'];
           final List<dynamic> validIds = app['valid_ids'] ?? [];
 
+          final cardPadding = ResponsiveUtil.responsiveValue(
+            context: context,
+            mobile: 12.0,
+            tablet: 16.0,
+            desktop: 24.0,
+          );
+
+          final cardMargin = ResponsiveUtil.responsiveValue(
+            context: context,
+            mobile: 8.0,
+            tablet: 12.0,
+            desktop: 16.0,
+          );
+
+          final imageSize = ResponsiveUtil.responsiveValue(
+            context: context,
+            mobile: 80.0,
+            tablet: 100.0,
+            desktop: 120.0,
+          );
+
+          final textStyle = TextStyle(
+            fontSize: ResponsiveUtil.responsiveValue(
+              context: context,
+              mobile: 14.0,
+              tablet: 16.0,
+              desktop: 18.0,
+            ),
+          );
+
           return Card(
-            margin: const EdgeInsets.all(10),
+            margin: EdgeInsets.all(cardMargin),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(cardPadding),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(user?['full_name'] ?? 'No Name', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(user?['full_name'] ?? 'No Name',
+                      style: textStyle.copyWith(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  Text(user?['email'] ?? 'No email'),
+                  Text(user?['email'] ?? 'No email', style: textStyle),
                   const SizedBox(height: 8),
-                  Text('Valid ID Type: ${app['valid_id_type'] ?? 'N/A'}'),
+                  Text('Valid ID Type: ${app['valid_id_type'] ?? 'N/A'}',
+                      style: textStyle),
                   const SizedBox(height: 6),
-                  Text('Submitted on: ${app['created_at']}'),
+                  Text('Submitted on: ${app['created_at']}', style: textStyle),
                   const SizedBox(height: 6),
+
                   if (validIds.isNotEmpty)
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: validIds.map<Widget>((url) {
                         return Container(
-                          width: 100,
-                          height: 100,
+                          width: imageSize,
+                          height: imageSize,
                           clipBehavior: Clip.antiAlias,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(8),
@@ -147,57 +181,50 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen> {
                           child: Image.network(
                             url,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image),
+                            errorBuilder: (context, error, stackTrace) =>
+                            const Icon(Icons.broken_image),
                             loadingBuilder: (context, child, loadingProgress) {
                               if (loadingProgress == null) return child;
-                              return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+                              return const Center(
+                                  child: CircularProgressIndicator(strokeWidth: 2));
                             },
                           ),
                         );
                       }).toList(),
                     ),
+
                   const SizedBox(height: 12),
-                  Row(
+
+                  ResponsiveUtil.isMobile(context)
+                      ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextButton(
+                        child: const Text('Reject',
+                            style: TextStyle(color: Colors.red)),
+                        onPressed: () => _showRejectDialog(app),
+                      ),
+                      const SizedBox(height: 10),
+                      ElevatedButton(
+                        onPressed: () async {
+                          await _updateApplicationStatus(
+                            app['id'],
+                            app['user_id'],
+                            'approved',
+                            appType: app['type'],
+                          );
+                        },
+                        child: const Text('Approve'),
+                      ),
+                    ],
+                  )
+                      : Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
-                        child: const Text('Reject', style: TextStyle(color: Colors.red)),
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (_) {
-                              final controller = TextEditingController();
-                              return AlertDialog(
-                                title: const Text('Reject Application'),
-                                content: TextField(
-                                  controller: controller,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Reason (optional)',
-                                  ),
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text('Cancel'),
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: () async {
-                                      await _updateApplicationStatus(
-                                        app['id'],
-                                        app['user_id'],
-                                        'rejected',
-                                        reason: controller.text.trim().isEmpty ? null : controller.text.trim(),
-                                        appType: app['type'],
-                                      );
-                                      Navigator.pop(context);
-                                    },
-                                    child: const Text('Confirm Reject'),
-                                  ),
-                                ],
-                              );
-                            },
-                          );
-                        },
+                        child: const Text('Reject',
+                            style: TextStyle(color: Colors.red)),
+                        onPressed: () => _showRejectDialog(app),
                       ),
                       const SizedBox(width: 10),
                       ElevatedButton(
@@ -219,6 +246,45 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen> {
           );
         },
       ),
+    );
+  }
+
+  void _showRejectDialog(dynamic app) {
+    showDialog(
+      context: context,
+      builder: (_) {
+        final controller = TextEditingController();
+        return AlertDialog(
+          title: const Text('Reject Application'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              labelText: 'Reason (optional)',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                await _updateApplicationStatus(
+                  app['id'],
+                  app['user_id'],
+                  'rejected',
+                  reason: controller.text.trim().isEmpty
+                      ? null
+                      : controller.text.trim(),
+                  appType: app['type'],
+                );
+                Navigator.pop(context);
+              },
+              child: const Text('Confirm Reject'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

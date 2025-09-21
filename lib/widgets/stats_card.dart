@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shoefrk_admin/utils/responsive_util.dart';
 
 class StatsCard extends StatelessWidget {
   final String title;
@@ -30,7 +31,14 @@ class StatsCard extends StatelessWidget {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(
+          ResponsiveUtil.responsiveValue<double>(
+            context: context,
+            mobile: 12,
+            tablet: 16,
+            desktop: 20,
+          ),
+        ),
         child: Row(
           children: [
             Container(
@@ -42,7 +50,12 @@ class StatsCard extends StatelessWidget {
               child: Icon(
                 icon,
                 color: color,
-                size: 24,
+                size: ResponsiveUtil.responsiveValue<double>(
+                  context: context,
+                  mobile: 20,
+                  tablet: 22,
+                  desktop: 24,
+                ),
               ),
             ),
             const SizedBox(width: 16),
@@ -53,7 +66,13 @@ class StatsCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    style: TextStyle(
+                      fontSize: ResponsiveUtil.responsiveValue<double>(
+                        context: context,
+                        mobile: 12,
+                        tablet: 14,
+                        desktop: 16,
+                      ),
                       color: Colors.grey.shade600,
                       fontWeight: FontWeight.w500,
                     ),
@@ -62,7 +81,13 @@ class StatsCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     value,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    style: TextStyle(
+                      fontSize: ResponsiveUtil.responsiveValue<double>(
+                        context: context,
+                        mobile: 14,
+                        tablet: 16,
+                        desktop: 18,
+                      ),
                       fontWeight: FontWeight.bold,
                       color: Colors.grey.shade800,
                     ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shoefrk_admin/utils/admin_logger.dart';
+import 'package:shoefrk_admin/utils/responsive_util.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ShoesTab extends StatefulWidget {
@@ -26,7 +27,8 @@ class _ShoesTabState extends State<ShoesTab> {
     setState(() => _loading = true);
     final result = await supabase
         .from('shoes')
-        .select('id, shoe_name, brand, price, status, color, seller_id, image_urls')        .order('created_at', ascending: false);
+        .select('id, shoe_name, brand, price, status, color, seller_id, image_urls')
+        .order('created_at', ascending: false);
     setState(() {
       _shoes = result;
       _loading = false;
@@ -54,7 +56,8 @@ class _ShoesTabState extends State<ShoesTab> {
     namedColors.forEach((name, c) {
       final distance = ((c.red - color.red) * (c.red - color.red) +
           (c.green - color.green) * (c.green - color.green) +
-          (c.blue - color.blue) * (c.blue - color.blue)).toDouble();
+          (c.blue - color.blue) * (c.blue - color.blue))
+          .toDouble();
       if (distance < minDistance) {
         minDistance = distance;
         closestName = name;
@@ -64,20 +67,24 @@ class _ShoesTabState extends State<ShoesTab> {
     return closestName;
   }
 
-
   Future<void> _editShoeDialog(dynamic shoe) async {
     final _nameController = TextEditingController(text: shoe['shoe_name']);
     final _brandController = TextEditingController(text: shoe['brand']);
-    final _priceController = TextEditingController(text: shoe['price'].toString());
+    final _priceController =
+    TextEditingController(text: shoe['price'].toString());
 
     final allowedStatuses = ['listed', 'archived'];
-    String _status = allowedStatuses.contains(shoe['status']) ? shoe['status'] : 'listed';
-    List<String> _selectedColors = (shoe['color'] as List?)?.cast<String>() ?? [];
+    String _status =
+    allowedStatuses.contains(shoe['status']) ? shoe['status'] : 'listed';
+    List<String> _selectedColors =
+        (shoe['color'] as List?)?.cast<String>() ?? [];
 
     bool _isUploading = false;
-    List<String> imageUrls = List<String>.from(shoe['image_urls'] as List? ?? []);
+    List<String> imageUrls =
+    List<String>.from(shoe['image_urls'] as List? ?? []);
 
-    Future<void> _pickAndUploadImage(StateSetter setDialogState, {int? indexToReplace}) async {
+    Future<void> _pickAndUploadImage(StateSetter setDialogState,
+        {int? indexToReplace}) async {
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(source: ImageSource.gallery);
       if (pickedFile == null) return;
@@ -85,11 +92,13 @@ class _ShoesTabState extends State<ShoesTab> {
       setDialogState(() => _isUploading = true);
       try {
         final bytes = await pickedFile.readAsBytes();
-        final fileName = 'shoe_${shoe['id']}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final fileName =
+            'shoe_${shoe['id']}_${DateTime.now().millisecondsSinceEpoch}.jpg';
         final filePath = 'valiID/$fileName';
 
         await supabase.storage.from('documents').uploadBinary(filePath, bytes);
-        final publicUrl = supabase.storage.from('documents').getPublicUrl(filePath);
+        final publicUrl =
+        supabase.storage.from('documents').getPublicUrl(filePath);
 
         setDialogState(() {
           if (indexToReplace != null) {
@@ -101,7 +110,9 @@ class _ShoesTabState extends State<ShoesTab> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Upload failed: $e'), backgroundColor: Colors.red),
+            SnackBar(
+                content: Text('Upload failed: $e'),
+                backgroundColor: Colors.red),
           );
         }
       } finally {
@@ -115,7 +126,12 @@ class _ShoesTabState extends State<ShoesTab> {
         context: context,
         builder: (_) => AlertDialog(
           title: const Text('Pick a color'),
-          content: SingleChildScrollView(child: ColorPicker(pickerColor: pickerColor, onColorChanged: (c) => pickerColor = c)),
+          content: SingleChildScrollView(
+            child: ColorPicker(
+              pickerColor: pickerColor,
+              onColorChanged: (c) => pickerColor = c,
+            ),
+          ),
           actions: [
             TextButton(
               child: const Text('Add'),
@@ -138,67 +154,114 @@ class _ShoesTabState extends State<ShoesTab> {
       builder: (_) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: const Text('Edit Shoe'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text("Photos (tap to replace):"),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: List.generate(imageUrls.length, (index) {
-                    return GestureDetector(
-                      onTap: () => _pickAndUploadImage(setState, indexToReplace: index),
-                      child: Image.network(imageUrls[index], width: 80, height: 80, fit: BoxFit.cover),
-                    );
-                  }),
-                ),
-
-                const SizedBox(height: 8),
-
-                if (_isUploading)
-                  const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator()))
-                else
+          content: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: ResponsiveUtil.responsiveValue(
+                context: context,
+                mobile: MediaQuery.of(context).size.width * 0.9,
+                tablet: 600,
+                desktop: 800,
+              ),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("Photos (tap to replace):"),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: List.generate(imageUrls.length, (index) {
+                      return GestureDetector(
+                        onTap: () =>
+                            _pickAndUploadImage(setState, indexToReplace: index),
+                        child: Image.network(imageUrls[index],
+                            width: ResponsiveUtil.responsiveValue(
+                              context: context,
+                              mobile: 60,
+                              tablet: 80,
+                              desktop: 100,
+                            ),
+                            height: ResponsiveUtil.responsiveValue(
+                              context: context,
+                              mobile: 60,
+                              tablet: 80,
+                              desktop: 100,
+                            ),
+                            fit: BoxFit.cover),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 8),
+                  if (_isUploading)
+                    const Center(
+                        child: Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: CircularProgressIndicator()))
+                  else
+                    Center(
+                      child: TextButton.icon(
+                        icon: const Icon(Icons.add_a_photo),
+                        label: const Text("Add New Photo"),
+                        onPressed: () => _pickAndUploadImage(setState),
+                      ),
+                    ),
+                  const SizedBox(height: 10),
+                  TextField(
+                      controller: _nameController,
+                      decoration:
+                      const InputDecoration(labelText: 'Shoe Name')),
+                  TextField(
+                      controller: _brandController,
+                      decoration: const InputDecoration(labelText: 'Brand')),
+                  TextField(
+                      controller: _priceController,
+                      decoration: const InputDecoration(labelText: 'Price'),
+                      keyboardType: TextInputType.number),
+                  DropdownButtonFormField<String>(
+                    value: _status,
+                    items: allowedStatuses
+                        .map((s) =>
+                        DropdownMenuItem(value: s, child: Text(s)))
+                        .toList(),
+                    onChanged: (val) => setState(() => _status = val!),
+                    decoration: const InputDecoration(labelText: 'Status'),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Colors:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  Wrap(
+                    spacing: 8,
+                    children: List.generate(_selectedColors.length, (index) {
+                      final name = _selectedColors[index];
+                      final color = namedColors[name] ?? Colors.grey;
+                      return Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.black26)),
+                      );
+                    }),
+                  ),
                   Center(
                     child: TextButton.icon(
-                      icon: const Icon(Icons.add_a_photo),
-                      label: const Text("Add New Photo"),
-                      onPressed: () => _pickAndUploadImage(setState),
+                      icon: const Icon(Icons.color_lens),
+                      label: const Text("Add Color"),
+                      onPressed: () => _addColor(context, setState),
                     ),
                   ),
-
-                const SizedBox(height: 10),
-                TextField(controller: _nameController, decoration: const InputDecoration(labelText: 'Shoe Name')),
-                TextField(controller: _brandController, decoration: const InputDecoration(labelText: 'Brand')),
-                TextField(controller: _priceController, decoration: const InputDecoration(labelText: 'Price'), keyboardType: TextInputType.number),
-                DropdownButtonFormField<String>(
-                  value: _status,
-                  items: allowedStatuses.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                  onChanged: (val) => setState(() => _status = val!),
-                  decoration: const InputDecoration(labelText: 'Status'),
-                ),
-
-                const SizedBox(height: 12),
-                const Text('Colors:', style: TextStyle(fontWeight: FontWeight.bold)),
-                Wrap(
-                  spacing: 8,
-                  children: List.generate(_selectedColors.length, (index) {
-                    final name = _selectedColors[index];
-                    final color = namedColors[name] ?? Colors.grey;
-                    return Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(color: color, shape: BoxShape.circle, border: Border.all(color: Colors.black26)),
-                    );
-                  }),
-                ),
-                Center(child: TextButton.icon(icon: const Icon(Icons.color_lens), label: const Text("Add Color"), onPressed: () => _addColor(context, setState))),
-              ],
+                ],
+              ),
             ),
           ),
           actions: [
-            TextButton(onPressed: _isUploading ? null : () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(
+                onPressed:
+                _isUploading ? null : () => Navigator.pop(context),
+                child: const Text('Cancel')),
             ElevatedButton(
               onPressed: _isUploading
                   ? null
@@ -206,7 +269,9 @@ class _ShoesTabState extends State<ShoesTab> {
                 await supabase.from('shoes').update({
                   'shoe_name': _nameController.text.trim(),
                   'brand': _brandController.text.trim(),
-                  'price': double.tryParse(_priceController.text.trim()) ?? 0,
+                  'price':
+                  double.tryParse(_priceController.text.trim()) ??
+                      0,
                   'status': _status,
                   'color': _selectedColors,
                   'image_urls': imageUrls,
@@ -235,11 +300,11 @@ class _ShoesTabState extends State<ShoesTab> {
   }
 
   Future<void> _toggleStatus(dynamic shoe) async {
-    final newStatus = (shoe['status'] == 'listed') ? 'archived' : 'listed';
+    final newStatus =
+    (shoe['status'] == 'listed') ? 'archived' : 'listed';
     await supabase
         .from('shoes')
-        .update({'status': newStatus})
-        .eq('id', shoe['id']);
+        .update({'status': newStatus}).eq('id', shoe['id']);
 
     await AdminLogger.logAction(
       action: "toggle_shoe_status",
@@ -261,10 +326,27 @@ class _ShoesTabState extends State<ShoesTab> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Report Shoe'),
-        content: TextField(
-          controller: _reasonController,
-          maxLines: 3,
-          decoration: const InputDecoration(hintText: 'Enter reason for reporting'),
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: ResponsiveUtil.responsiveValue(
+              context: context,
+              mobile: MediaQuery.of(context).size.width * 0.9,
+              tablet: 500,
+              desktop: 700,
+            ),
+          ),
+          child: TextField(
+            controller: _reasonController,
+            maxLines: ResponsiveUtil.responsiveValue(
+              context: context,
+              mobile: 3,
+              tablet: 4,
+              desktop: 5,
+            ),
+            decoration: const InputDecoration(
+              hintText: 'Enter reason for reporting',
+            ),
+          ),
         ),
         actions: [
           TextButton(
@@ -298,7 +380,8 @@ class _ShoesTabState extends State<ShoesTab> {
 
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Shoe reported successfully')),
+                  const SnackBar(
+                      content: Text('Shoe reported successfully')),
                 );
               }
             },
@@ -318,7 +401,8 @@ class _ShoesTabState extends State<ShoesTab> {
       itemBuilder: (context, index) {
         final shoe = _shoes[index];
         return ListTile(
-          leading: (shoe['image_urls'] != null && (shoe['image_urls'] as List).isNotEmpty)
+          leading: (shoe['image_urls'] != null &&
+              (shoe['image_urls'] as List).isNotEmpty)
               ? GestureDetector(
             onTap: () {
               showDialog(
@@ -326,8 +410,20 @@ class _ShoesTabState extends State<ShoesTab> {
                 builder: (_) => Dialog(
                   insetPadding: const EdgeInsets.all(16),
                   child: SizedBox(
-                    width: MediaQuery.of(context).size.width * 0.8,
-                    height: MediaQuery.of(context).size.height * 0.5,
+                    width: ResponsiveUtil.responsiveValue(
+                      context: context,
+                      mobile: MediaQuery.of(context).size.width *
+                          0.9,
+                      tablet: 600,
+                      desktop: 900,
+                    ),
+                    height: ResponsiveUtil.responsiveValue(
+                      context: context,
+                      mobile: MediaQuery.of(context).size.height *
+                          0.5,
+                      tablet: 500,
+                      desktop: 700,
+                    ),
                     child: PageView(
                       children: (shoe['image_urls'] as List)
                           .map<Widget>((url) => InteractiveViewer(
@@ -342,13 +438,22 @@ class _ShoesTabState extends State<ShoesTab> {
                 ),
               );
             },
-
             child: ClipRRect(
               borderRadius: BorderRadius.circular(6),
               child: Image.network(
                 shoe['image_urls'][0],
-                width: 60,
-                height: 60,
+                width: ResponsiveUtil.responsiveValue(
+                  context: context,
+                  mobile: 50,
+                  tablet: 60,
+                  desktop: 70,
+                ),
+                height: ResponsiveUtil.responsiveValue(
+                  context: context,
+                  mobile: 50,
+                  tablet: 60,
+                  desktop: 70,
+                ),
                 fit: BoxFit.cover,
               ),
             ),
@@ -363,23 +468,31 @@ class _ShoesTabState extends State<ShoesTab> {
                 shoe['status'] ?? 'unknown',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: shoe['status'] == 'listed' ? Colors.green : Colors.grey,
+                  color: shoe['status'] == 'listed'
+                      ? Colors.green
+                      : Colors.grey,
                 ),
               ),
               IconButton(
                 icon: Icon(
-                  shoe['status'] == 'listed' ? Icons.archive : Icons.unarchive,
+                  shoe['status'] == 'listed'
+                      ? Icons.archive
+                      : Icons.unarchive,
                   color: Colors.orange,
                 ),
-                tooltip: shoe['status'] == 'listed' ? 'Archive' : 'Restore',
+                tooltip: shoe['status'] == 'listed'
+                    ? 'Archive'
+                    : 'Restore',
                 onPressed: () => _toggleStatus(shoe),
               ),
               IconButton(
-                icon: const Icon(Icons.edit, color: Colors.blue),
+                icon:
+                const Icon(Icons.edit, color: Colors.blue),
                 onPressed: () => _editShoeDialog(shoe),
               ),
               IconButton(
-                icon: const Icon(Icons.report, color: Colors.red),
+                icon:
+                const Icon(Icons.report, color: Colors.red),
                 onPressed: () => _reportShoeDialog(shoe),
               ),
             ],

@@ -17,6 +17,10 @@ class ProductScreen extends StatelessWidget {
       length: 4,
       child: Scaffold(
         appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
           title: Text(
             'Manage Products',
             style: TextStyle(
@@ -54,7 +58,7 @@ class ProductScreen extends StatelessWidget {
                 isScrollable: false,
                 tabAlignment: TabAlignment.fill,
                 dividerColor: Colors.transparent,
-                indicator: BoxDecoration(
+                indicator: const BoxDecoration(
                   border: Border(
                     bottom: BorderSide(
                       color: Colors.white,

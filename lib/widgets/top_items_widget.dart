@@ -22,25 +22,33 @@ class _TopItemsWidgetState extends State<TopItemsWidget> {
   }
 
   Future<void> fetchTopItems() async {
-    final url = Uri.parse(
-        'https://mnrqpptcreskqnynhevx.supabase.co/functions/v1/Get-Top-Items');
-    final response = await http.get(
-      url,
-      headers: {
-        'Authorization':
-        'Bearer 4be938ecc8b125c07f219550ce94c62b1ee325c32320318b49235d11104cda91'
-      },
-    );
+    try {
+      final url = Uri.parse(
+          'https://mnrqpptcreskqnynhevx.supabase.co/functions/v1/Get-Top-Items');
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization':
+          'Bearer 4be938ecc8b125c07f219550ce94c62b1ee325c32320318b49235d11104cda91'
+        },
+      );
 
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      setState(() {
-        _items = data.map((e) => TopItem.fromJson(e)).toList();
-        _isLoading = false;
-      });
-    } else {
-      setState(() => _isLoading = false);
-      throw Exception('Failed to load top items');
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        setState(() {
+          _items = data.map((e) => TopItem.fromJson(e)).toList();
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+        throw Exception('Failed to load top items');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 

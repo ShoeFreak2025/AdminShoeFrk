@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shoefrk_admin/utils/responsive_util.dart';
 
 enum OrderStatus {
   PENDING_APPROVAL,
@@ -47,7 +48,7 @@ class _OrdersTabState extends State<OrdersTab> {
         });
       }
     } catch (e) {
-      debugPrint('Error fetching orders: $e');
+      debugPrint('❌ Error fetching orders: $e');
       setState(() => isLoading = false);
     }
   }
@@ -84,54 +85,90 @@ class _OrdersTabState extends State<OrdersTab> {
 
       await fetchOrders();
     } catch (e) {
-      debugPrint('Error updating order: $e');
+      debugPrint('❌ Error updating order: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) return const Center(child: CircularProgressIndicator());
+    final double cardPadding = ResponsiveUtil.responsiveValue(
+      context: context,
+      mobile: 12,
+      tablet: 16,
+      desktop: 20,
+    );
 
-    return ListView.builder(
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (orders.isEmpty) {
+      return const Center(
+        child: Text(
+          'No orders found.',
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: EdgeInsets.all(cardPadding),
       itemCount: orders.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final order = orders[index];
-        return ListTile(
-          title: Text('Order ${order['id']}'),
-          subtitle: Text('Status: ${order['status']}'),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (order['tracking_number'] != null)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: Text('Tracking: ${order['tracking_number']}'),
+        final status = order['status'] ?? 'UNKNOWN';
+        final tracking = order['tracking_number'];
+
+        return Card(
+          elevation: 3,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: ListTile(
+            contentPadding: EdgeInsets.all(cardPadding),
+            title: Text(
+              'Order #${order['id']}',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Status: $status'),
+                  if (tracking != null) Text('Tracking: $tracking'),
+                ],
+              ),
+            ),
+            trailing: PopupMenuButton<OrderStatus>(
+              onSelected: (newStatus) {
+                updateOrderStatus(order['id'], newStatus);
+              },
+              itemBuilder: (context) {
+                return OrderStatus.values.map((status) {
+                  return PopupMenuItem(
+                    value: status,
+                    child: Text(status.name),
+                  );
+                }).toList();
+              },
+              child: Container(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade600,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-              PopupMenuButton<OrderStatus>(
-                onSelected: (status) {
-                  updateOrderStatus(order['id'], status);
-                },
-                itemBuilder: (context) {
-                  return OrderStatus.values.map((status) {
-                    return PopupMenuItem(
-                      value: status,
-                      child: Text(status.name),
-                    );
-                  }).toList();
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.blue,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    'Update Status',
-                    style: TextStyle(color: Colors.white),
-                  ),
+                child: const Text(
+                  'Update Status',
+                  style: TextStyle(color: Colors.white),
                 ),
               ),
-            ],
+            ),
           ),
         );
       },

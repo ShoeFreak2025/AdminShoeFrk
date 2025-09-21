@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import '../models/dashboard_stats.dart';
+import 'package:shoefrk_admin/models/dashboard_stats.dart';
+import 'package:shoefrk_admin/utils/responsive_util.dart';
 
 class TopItemsWidget extends StatefulWidget {
   const TopItemsWidget({Key? key}) : super(key: key);
@@ -25,7 +26,10 @@ class _TopItemsWidgetState extends State<TopItemsWidget> {
         'https://mnrqpptcreskqnynhevx.supabase.co/functions/v1/Get-Top-Items');
     final response = await http.get(
       url,
-      headers: {'Authorization': 'Bearer 4be938ecc8b125c07f219550ce94c62b1ee325c32320318b49235d11104cda91'},
+      headers: {
+        'Authorization':
+        'Bearer 4be938ecc8b125c07f219550ce94c62b1ee325c32320318b49235d11104cda91'
+      },
     );
 
     if (response.statusCode == 200) {
@@ -42,6 +46,34 @@ class _TopItemsWidgetState extends State<TopItemsWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final double padding = ResponsiveUtil.responsiveValue<double>(
+      context: context,
+      mobile: 16,
+      tablet: 20,
+      desktop: 24,
+    );
+
+    final double iconSize = ResponsiveUtil.responsiveValue<double>(
+      context: context,
+      mobile: 20,
+      tablet: 22,
+      desktop: 24,
+    );
+
+    final double titleSize = ResponsiveUtil.responsiveValue<double>(
+      context: context,
+      mobile: 16,
+      tablet: 18,
+      desktop: 20,
+    );
+
+    final double subtitleSize = ResponsiveUtil.responsiveValue<double>(
+      context: context,
+      mobile: 12,
+      tablet: 13,
+      desktop: 14,
+    );
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -56,42 +88,46 @@ class _TopItemsWidgetState extends State<TopItemsWidget> {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(padding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.trending_up, color: Colors.orange.shade600, size: 24),
+                Icon(Icons.trending_up,
+                    color: Colors.orange.shade600, size: iconSize),
                 const SizedBox(width: 8),
                 Text(
                   'Top Items',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
+                    fontSize: titleSize,
                     color: Colors.grey.shade800,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+
+            SizedBox(height: padding),
 
             if (_isLoading)
               const Center(child: CircularProgressIndicator())
             else if (_items.isEmpty)
               Container(
-                padding: const EdgeInsets.all(32),
+                padding: EdgeInsets.all(padding * 2),
                 child: Column(
                   children: [
                     Icon(Icons.inventory_2_outlined,
-                        size: 48, color: Colors.grey.shade400),
+                        size: iconSize * 2, color: Colors.grey.shade400),
                     const SizedBox(height: 16),
-                    Text('No sold items yet',
-                        style:
-                        TextStyle(color: Colors.grey.shade600, fontSize: 16)),
+                    Text(
+                      'No sold items yet',
+                      style: TextStyle(
+                          color: Colors.grey.shade600, fontSize: subtitleSize),
+                    ),
                   ],
                 ),
               )
-
             else
               ListView.separated(
                 shrinkWrap: true,
@@ -104,50 +140,68 @@ class _TopItemsWidgetState extends State<TopItemsWidget> {
                 itemBuilder: (context, index) {
                   final item = _items[index];
                   return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: EdgeInsets.symmetric(vertical: padding / 2),
                     child: Row(
                       children: [
                         Container(
-                          width: 40,
-                          height: 40,
+                          width: ResponsiveUtil.responsiveValue<double>(
+                            context: context,
+                            mobile: 36,
+                            tablet: 40,
+                            desktop: 44,
+                          ),
+                          height: ResponsiveUtil.responsiveValue<double>(
+                            context: context,
+                            mobile: 36,
+                            tablet: 40,
+                            desktop: 44,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.blue.shade50,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Center(
-                            child: Text('${index + 1}',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue.shade700)),
+                            child: Text(
+                              '${index + 1}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue.shade700,
+                                fontSize: subtitleSize,
+                              ),
+                            ),
                           ),
                         ),
+
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(item.name,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600, fontSize: 16)),
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: titleSize)),
                               const SizedBox(height: 4),
                               Text('${item.quantitySold} sold',
                                   style: TextStyle(
-                                      color: Colors.grey.shade600, fontSize: 14)),
+                                      color: Colors.grey.shade600,
+                                      fontSize: subtitleSize)),
                             ],
                           ),
                         ),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text('\₱${item.revenue.toStringAsFixed(2)}',
-                                style: const TextStyle(
+                            Text('₱${item.revenue.toStringAsFixed(2)}',
+                                style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 16,
+                                    fontSize: titleSize,
                                     color: Colors.green)),
                             const SizedBox(height: 4),
                             Text('Revenue',
                                 style: TextStyle(
-                                    color: Colors.grey.shade600, fontSize: 12)),
+                                    color: Colors.grey.shade600,
+                                    fontSize: subtitleSize)),
                           ],
                         ),
                       ],

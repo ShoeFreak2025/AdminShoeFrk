@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shoefrk_admin/utils/admin_logger.dart';
+import 'package:shoefrk_admin/utils/responsive_util.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ArtworksTab extends StatefulWidget {
@@ -8,14 +9,12 @@ class ArtworksTab extends StatefulWidget {
 
   @override
   State<ArtworksTab> createState() => _ArtworksTabState();
-
 }
 
 class _ArtworksTabState extends State<ArtworksTab> {
   final supabase = Supabase.instance.client;
   List<dynamic> _artworks = [];
   bool _loading = true;
-
   String _statusFilter = 'all';
 
   @override
@@ -45,11 +44,11 @@ class _ArtworksTabState extends State<ArtworksTab> {
   }
 
   Future<void> _editArtworkDialog(dynamic artwork) async {
-    final _titleController = TextEditingController(text: artwork['title']);
-    final _descController = TextEditingController(text: artwork['description']);
+    final titleController = TextEditingController(text: artwork['title']);
+    final descController = TextEditingController(text: artwork['description']);
 
     final allowedStatuses = ['listed', 'archived'];
-    String _status = allowedStatuses.contains(artwork['status'])
+    String status = allowedStatuses.contains(artwork['status'])
         ? artwork['status']
         : 'listed';
 
@@ -63,7 +62,7 @@ class _ArtworksTabState extends State<ArtworksTab> {
       builder: (_) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            Future<void> _pickAndUploadImage({int? indexToReplace}) async {
+            Future<void> pickAndUploadImage({int? indexToReplace}) async {
               final picker = ImagePicker();
               final pickedFile =
               await picker.pickImage(source: ImageSource.gallery);
@@ -79,6 +78,7 @@ class _ArtworksTabState extends State<ArtworksTab> {
                 await supabase.storage
                     .from('documents')
                     .uploadBinary(filePath, bytes);
+
                 final publicUrl =
                 supabase.storage.from('documents').getPublicUrl(filePath);
 
@@ -115,11 +115,22 @@ class _ArtworksTabState extends State<ArtworksTab> {
                       runSpacing: 8,
                       children: List.generate(imageUrls.length, (index) {
                         return GestureDetector(
-                          onTap: () => _pickAndUploadImage(indexToReplace: index),
+                          onTap: () =>
+                              pickAndUploadImage(indexToReplace: index),
                           child: Image.network(
                             imageUrls[index],
-                            width: 80,
-                            height: 80,
+                            width: ResponsiveUtil.responsiveValue(
+                              context: context,
+                              mobile: 60,
+                              tablet: 80,
+                              desktop: 100,
+                            ),
+                            height: ResponsiveUtil.responsiveValue(
+                              context: context,
+                              mobile: 60,
+                              tablet: 80,
+                              desktop: 100,
+                            ),
                             fit: BoxFit.cover,
                           ),
                         );
@@ -134,8 +145,18 @@ class _ArtworksTabState extends State<ArtworksTab> {
                       children: tempImageUrls
                           .map((url) => Image.network(
                         url,
-                        width: 80,
-                        height: 80,
+                        width: ResponsiveUtil.responsiveValue(
+                          context: context,
+                          mobile: 60,
+                          tablet: 80,
+                          desktop: 100,
+                        ),
+                        height: ResponsiveUtil.responsiveValue(
+                          context: context,
+                          mobile: 60,
+                          tablet: 80,
+                          desktop: 100,
+                        ),
                         fit: BoxFit.cover,
                       ))
                           .toList(),
@@ -154,22 +175,23 @@ class _ArtworksTabState extends State<ArtworksTab> {
                         child: TextButton.icon(
                           icon: const Icon(Icons.add_a_photo),
                           label: const Text("Add New Photo"),
-                          onPressed: () => _pickAndUploadImage(),
+                          onPressed: () => pickAndUploadImage(),
                         ),
                       ),
 
                     const SizedBox(height: 12),
                     TextField(
-                      controller: _titleController,
+                      controller: titleController,
                       decoration: const InputDecoration(labelText: 'Title'),
                     ),
                     TextField(
-                      controller: _descController,
-                      decoration: const InputDecoration(labelText: 'Description'),
+                      controller: descController,
+                      decoration:
+                      const InputDecoration(labelText: 'Description'),
                       maxLines: 3,
                     ),
                     DropdownButtonFormField<String>(
-                      value: _status,
+                      value: status,
                       items: allowedStatuses
                           .map((s) => DropdownMenuItem(
                         value: s,
@@ -177,7 +199,7 @@ class _ArtworksTabState extends State<ArtworksTab> {
                       ))
                           .toList(),
                       onChanged: (val) =>
-                          setDialogState(() => _status = val!),
+                          setDialogState(() => status = val!),
                       decoration: const InputDecoration(labelText: 'Status'),
                     ),
                   ],
@@ -193,9 +215,9 @@ class _ArtworksTabState extends State<ArtworksTab> {
                       ? null
                       : () async {
                     await supabase.from('artworks').update({
-                      'title': _titleController.text.trim(),
-                      'description': _descController.text.trim(),
-                      'status': _status,
+                      'title': titleController.text.trim(),
+                      'description': descController.text.trim(),
+                      'status': status,
                       'image_urls': [...imageUrls, ...tempImageUrls],
                     }).eq('id', artwork['id']);
 
@@ -205,9 +227,9 @@ class _ArtworksTabState extends State<ArtworksTab> {
                       targetType: "artwork",
                       details: {
                         "old_title": artwork['title'],
-                        "new_title": _titleController.text.trim(),
+                        "new_title": titleController.text.trim(),
                         "old_status": artwork['status'],
-                        "new_status": _status,
+                        "new_status": status,
                       },
                     );
 
@@ -235,9 +257,7 @@ class _ArtworksTabState extends State<ArtworksTab> {
           label: Text(status[0].toUpperCase() + status.substring(1)),
           selected: isSelected,
           onSelected: (_) {
-            setState(() {
-              _statusFilter = status;
-            });
+            setState(() => _statusFilter = status);
             _loadArtworks();
           },
         );
@@ -250,7 +270,14 @@ class _ArtworksTabState extends State<ArtworksTab> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(
+            ResponsiveUtil.responsiveValue(
+              context: context,
+              mobile: 8,
+              tablet: 12,
+              desktop: 16,
+            ),
+          ),
           child: _buildFilterChips(),
         ),
         Expanded(
@@ -270,18 +297,39 @@ class _ArtworksTabState extends State<ArtworksTab> {
                     showDialog(
                       context: context,
                       builder: (_) => Dialog(
-                        insetPadding: const EdgeInsets.all(16),
+                        insetPadding:
+                        const EdgeInsets.all(16),
                         child: SizedBox(
-                          width: MediaQuery.of(context).size.width * 0.8,
-                          height: MediaQuery.of(context).size.height * 0.5,
+                          width: ResponsiveUtil
+                              .responsiveValue<double>(
+                            context: context,
+                            mobile: MediaQuery.of(context)
+                                .size
+                                .width *
+                                0.95,
+                            tablet: 600,
+                            desktop: 800,
+                          ),
+                          height: ResponsiveUtil
+                              .responsiveValue<double>(
+                            context: context,
+                            mobile: MediaQuery.of(context)
+                                .size
+                                .height *
+                                0.6,
+                            tablet: 500,
+                            desktop: 600,
+                          ),
                           child: PageView(
-                            children: (artwork['image_urls'] as List)
-                                .map<Widget>((url) => InteractiveViewer(
-                              child: Image.network(
-                                url,
-                                fit: BoxFit.contain,
-                              ),
-                            ))
+                            children: (artwork['image_urls']
+                            as List)
+                                .map<Widget>(
+                                    (url) => InteractiveViewer(
+                                  child: Image.network(
+                                    url,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ))
                                 .toList(),
                           ),
                         ),
@@ -290,22 +338,58 @@ class _ArtworksTabState extends State<ArtworksTab> {
                   },
                   child: Image.network(
                     artwork['image_urls'][0],
-                    width: 60,
-                    height: 60,
+                    width: ResponsiveUtil.responsiveValue(
+                      context: context,
+                      mobile: 50,
+                      tablet: 70,
+                      desktop: 90,
+                    ),
+                    height: ResponsiveUtil.responsiveValue(
+                      context: context,
+                      mobile: 50,
+                      tablet: 70,
+                      desktop: 90,
+                    ),
                     fit: BoxFit.cover,
                   ),
                 )
                     : const Icon(Icons.brush),
-                title: Text(artwork['title'] ?? 'Untitled'),
-                subtitle:
-                Text(artwork['created_by'] ?? 'Unknown Artist'),
+                title: Text(
+                  artwork['title'] ?? 'Untitled',
+                  style: TextStyle(
+                    fontSize: ResponsiveUtil.responsiveValue(
+                      context: context,
+                      mobile: 14,
+                      tablet: 16,
+                      desktop: 18,
+                    ),
+                  ),
+                ),
+                subtitle: Text(
+                  artwork['created_by'] ?? 'Unknown Artist',
+                  style: TextStyle(
+                    fontSize: ResponsiveUtil.responsiveValue(
+                      context: context,
+                      mobile: 12,
+                      tablet: 14,
+                      desktop: 16,
+                    ),
+                  ),
+                ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       artwork['status'] ?? 'unknown',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: ResponsiveUtil.responsiveValue(
+                          context: context,
+                          mobile: 12,
+                          tablet: 14,
+                          desktop: 16,
+                        ),
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.edit, color: Colors.blue),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shoefrk_admin/utils/responsive_util.dart';
 
 class ReportedShoesTab extends StatefulWidget {
   const ReportedShoesTab({Key? key}) : super(key: key);
@@ -43,42 +44,134 @@ class _ReportedShoesTabState extends State<ReportedShoesTab> {
 
   @override
   Widget build(BuildContext context) {
-    return _loading
-        ? const Center(child: CircularProgressIndicator())
-        : ListView.builder(
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_reports.isEmpty) {
+      return const Center(child: Text("No reported shoes"));
+    }
+
+    final double fontSize = ResponsiveUtil.responsiveValue(
+      context: context,
+      mobile: 12,
+      tablet: 14,
+      desktop: 16,
+    );
+
+    final double iconSize = ResponsiveUtil.responsiveValue(
+      context: context,
+      mobile: 20,
+      tablet: 28,
+      desktop: 32,
+    );
+
+    final EdgeInsets cardMargin = ResponsiveUtil.responsiveValue(
+      context: context,
+      mobile: const EdgeInsets.all(8),
+      tablet: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      desktop: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+    );
+
+    return ListView.builder(
       itemCount: _reports.length,
       itemBuilder: (context, index) {
         final report = _reports[index];
         final shoe = report['shoes'];
 
         return Card(
-          margin: const EdgeInsets.all(8),
-          child: ListTile(
-            leading: const Icon(Icons.warning, color: Colors.red),
-            title: Text(shoe['shoe_name'] ?? 'Unknown'),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text("Brand: ${shoe['brand']}"),
-                Text("Seller: ${shoe['shoe_name']}"),
-                Text("Reason: ${report['reason']}"),
-                Text("Reported on: ${report['created_at']}"),
-                if (report['is_resolved'] == true)
-                  const Text("Status: Resolved", style: TextStyle(color: Colors.green))
-                else
-                  const Text("Status: Pending", style: TextStyle(color: Colors.red)),
-              ],
-            ),
-            trailing: report['is_resolved'] == true
-                ? const Icon(Icons.check, color: Colors.green)
-                : IconButton(
-              icon: const Icon(Icons.done),
-              tooltip: "Mark as Resolved",
-              onPressed: () => _markAsResolved(report['id']),
-            ),
+          margin: cardMargin,
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: ResponsiveUtil.isMobile(context)
+                ? _buildMobileLayout(report, shoe, fontSize, iconSize)
+                : _buildWideLayout(report, shoe, fontSize, iconSize),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildMobileLayout(
+      Map<String, dynamic> report,
+      Map<String, dynamic>? shoe,
+      double fontSize,
+      double iconSize,
+      ) {
+    return ListTile(
+      leading: Icon(Icons.warning, color: Colors.red, size: iconSize),
+      title: Text(
+        shoe?['shoe_name'] ?? 'Unknown',
+        style: TextStyle(fontSize: fontSize + 2, fontWeight: FontWeight.bold),
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Brand: ${shoe?['brand']}", style: TextStyle(fontSize: fontSize)),
+          Text("Seller: ${shoe?['users']?['full_name'] ?? shoe?['seller_id']}",
+              style: TextStyle(fontSize: fontSize)),
+          Text("Reason: ${report['reason']}", style: TextStyle(fontSize: fontSize)),
+          Text("Reported on: ${report['created_at']}",
+              style: TextStyle(fontSize: fontSize - 1, color: Colors.grey)),
+          if (report['is_resolved'] == true)
+            Text("Status: Resolved",
+                style: TextStyle(color: Colors.green, fontSize: fontSize))
+          else
+            Text("Status: Pending",
+                style: TextStyle(color: Colors.red, fontSize: fontSize)),
+        ],
+      ),
+      trailing: report['is_resolved'] == true
+          ? Icon(Icons.check, color: Colors.green, size: iconSize)
+          : IconButton(
+        icon: Icon(Icons.done, size: iconSize),
+        tooltip: "Mark as Resolved",
+        onPressed: () => _markAsResolved(report['id']),
+      ),
+    );
+  }
+
+  Widget _buildWideLayout(
+      Map<String, dynamic> report,
+      Map<String, dynamic>? shoe,
+      double fontSize,
+      double iconSize,
+      ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.warning, color: Colors.red, size: iconSize),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(shoe?['shoe_name'] ?? 'Unknown',
+                  style: TextStyle(fontSize: fontSize + 2, fontWeight: FontWeight.bold)),
+              Text("Brand: ${shoe?['brand']}", style: TextStyle(fontSize: fontSize)),
+              Text("Seller: ${shoe?['users']?['full_name'] ?? shoe?['seller_id']}",
+                  style: TextStyle(fontSize: fontSize)),
+              Text("Reason: ${report['reason']}", style: TextStyle(fontSize: fontSize)),
+              Text("Reported on: ${report['created_at']}",
+                  style: TextStyle(fontSize: fontSize - 1, color: Colors.grey)),
+              if (report['is_resolved'] == true)
+                Text("Status: Resolved",
+                    style: TextStyle(color: Colors.green, fontSize: fontSize))
+              else
+                Text("Status: Pending",
+                    style: TextStyle(color: Colors.red, fontSize: fontSize)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 16),
+        report['is_resolved'] == true
+            ? Icon(Icons.check, color: Colors.green, size: iconSize)
+            : ElevatedButton.icon(
+          icon: Icon(Icons.done, size: iconSize - 6),
+          label: const Text("Resolve"),
+          onPressed: () => _markAsResolved(report['id']),
+        ),
+      ],
     );
   }
 }

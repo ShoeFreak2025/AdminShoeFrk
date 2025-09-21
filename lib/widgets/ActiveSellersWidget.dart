@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shoefrk_admin/utils/responsive_util.dart';
 
 class ActiveSellersWidget extends StatelessWidget {
   final List<dynamic> sellers;
@@ -10,6 +11,34 @@ class ActiveSellersWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double avatarSize = ResponsiveUtil.responsiveValue(
+      context: context,
+      mobile: 40,
+      tablet: 60,
+      desktop: 70,
+    );
+
+    final double fontSize = ResponsiveUtil.responsiveValue(
+      context: context,
+      mobile: 14,
+      tablet: 16,
+      desktop: 18,
+    );
+
+    final double titleFontSize = ResponsiveUtil.responsiveValue(
+      context: context,
+      mobile: 16,
+      tablet: 18,
+      desktop: 20,
+    );
+
+    final EdgeInsets containerPadding = ResponsiveUtil.responsiveValue(
+      context: context,
+      mobile: const EdgeInsets.all(16),
+      tablet: const EdgeInsets.all(24),
+      desktop: const EdgeInsets.all(32),
+    );
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -24,7 +53,7 @@ class ActiveSellersWidget extends StatelessWidget {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: containerPadding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -33,13 +62,19 @@ class ActiveSellersWidget extends StatelessWidget {
                 Icon(
                   Icons.store,
                   color: Colors.green.shade600,
-                  size: 24,
+                  size: ResponsiveUtil.responsiveValue(
+                    context: context,
+                    mobile: 20,
+                    tablet: 24,
+                    desktop: 28,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   'Active Sellers',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
+                    fontSize: titleFontSize,
                     color: Colors.grey.shade800,
                   ),
                 ),
@@ -53,7 +88,12 @@ class ActiveSellersWidget extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.person_off_outlined,
-                      size: 48,
+                      size: ResponsiveUtil.responsiveValue(
+                        context: context,
+                        mobile: 40,
+                        tablet: 60,
+                        desktop: 80,
+                      ),
                       color: Colors.grey.shade400,
                     ),
                     const SizedBox(height: 16),
@@ -61,7 +101,7 @@ class ActiveSellersWidget extends StatelessWidget {
                       'No active sellers yet',
                       style: TextStyle(
                         color: Colors.grey.shade600,
-                        fontSize: 16,
+                        fontSize: fontSize,
                       ),
                     ),
                   ],
@@ -83,26 +123,30 @@ class ActiveSellersWidget extends StatelessWidget {
                     child: Row(
                       children: [
                         Container(
-                          width: 40,
-                          height: 40,
+                          width: avatarSize,
+                          height: avatarSize,
                           decoration: BoxDecoration(
                             color: Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(avatarSize / 2),
                           ),
-                          child: seller['avatar_url'] != null && seller['avatar_url'].toString().isNotEmpty
+                          child: seller['avatar_url'] != null &&
+                              seller['avatar_url'].toString().isNotEmpty
                               ? ClipRRect(
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius:
+                            BorderRadius.circular(avatarSize / 2),
                             child: Image.network(
                               seller['avatar_url'],
-                              width: 40,
-                              height: 40,
+                              width: avatarSize,
+                              height: avatarSize,
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return _buildDefaultAvatar(seller);
+                              errorBuilder:
+                                  (context, error, stackTrace) {
+                                return _buildDefaultAvatar(
+                                    seller, fontSize);
                               },
                             ),
                           )
-                              : _buildDefaultAvatar(seller),
+                              : _buildDefaultAvatar(seller, fontSize),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -110,20 +154,23 @@ class ActiveSellersWidget extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                seller['full_name'] ?? seller['user_name'] ?? 'Unknown Seller',
-                                style: const TextStyle(
+                                seller['full_name'] ??
+                                    seller['user_name'] ??
+                                    'Unknown Seller',
+                                style: TextStyle(
                                   fontWeight: FontWeight.w600,
-                                  fontSize: 16,
+                                  fontSize: fontSize + 2,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 4),
-                              if (seller['user_name'] != null && seller['full_name'] != seller['user_name'])
+                              if (seller['user_name'] != null &&
+                                  seller['full_name'] != seller['user_name'])
                                 Text(
                                   '@${seller['user_name']}',
                                   style: TextStyle(
                                     color: Colors.grey.shade600,
-                                    fontSize: 14,
+                                    fontSize: fontSize,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -132,7 +179,7 @@ class ActiveSellersWidget extends StatelessWidget {
                                   seller['email'],
                                   style: TextStyle(
                                     color: Colors.grey.shade500,
-                                    fontSize: 12,
+                                    fontSize: fontSize - 2,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -140,7 +187,8 @@ class ActiveSellersWidget extends StatelessWidget {
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: Colors.green.shade100,
                             borderRadius: BorderRadius.circular(12),
@@ -149,7 +197,7 @@ class ActiveSellersWidget extends StatelessWidget {
                             'Active',
                             style: TextStyle(
                               color: Colors.green.shade700,
-                              fontSize: 12,
+                              fontSize: fontSize - 2,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -165,7 +213,7 @@ class ActiveSellersWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildDefaultAvatar(Map<String, dynamic> seller) {
+  Widget _buildDefaultAvatar(Map<String, dynamic> seller, double fontSize) {
     String initials = '';
     final fullName = seller['full_name']?.toString();
     final userName = seller['user_name']?.toString();
@@ -187,7 +235,7 @@ class ActiveSellersWidget extends StatelessWidget {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           color: Colors.green.shade700,
-          fontSize: 16,
+          fontSize: fontSize,
         ),
       ),
     );

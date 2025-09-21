@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shoefrk_admin/utils/admin_logger.dart';
+import 'package:shoefrk_admin/utils/responsive_util.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -316,7 +317,6 @@ class _UsersScreenState extends State<UsersScreen> {
                                     targetType: "post",
                                     details: {"new_status": newValue},
                                   );
-
                                 } catch (e) {
                                   _showErrorSnackBar('Failed to update post status: $e');
                                 }
@@ -325,10 +325,12 @@ class _UsersScreenState extends State<UsersScreen> {
                       ),
                       children: comments.isEmpty
                           ? [const ListTile(title: Text('No comments found.'))]
-                          : comments.map((comment) => ListTile(
+                          : comments
+                          .map((comment) => ListTile(
                         title: Text(comment['comment'] ?? ''),
                         subtitle: Text('By: ${comment['user_name'] ?? 'Anonymous'}'),
-                      )).toList(),
+                      ))
+                          .toList(),
                     ),
                   );
                 },
@@ -338,41 +340,69 @@ class _UsersScreenState extends State<UsersScreen> {
           ),
         ),
       );
-    } catch(e) {
+    } catch (e) {
       Navigator.pop(context);
       _showErrorSnackBar('Failed to open user posts: $e');
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Manage Users')),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _users.isEmpty
-          ? const Center(child: Text("No users found."))
-          : ListView.separated(
-        itemCount: _users.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
-        itemBuilder: (context, index) {
-          final user = _users[index];
-          final isDeleted = user['is_deleted'] ?? false;
-          return ListTile(
-            leading: CircleAvatar(child: Text(user['full_name']?[0]?.toUpperCase() ?? '?')),
-            title: Text(user['full_name'] ?? 'Unnamed'),
-            subtitle: Text(user['email'] ?? 'No email'),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
+  Widget _buildUserTile(Map<String, dynamic> user) {
+    final isDeleted = user['is_deleted'] ?? false;
+    return ListTile(
+      leading: CircleAvatar(child: Text(user['full_name']?[0]?.toUpperCase() ?? '?')),
+      title: Text(user['full_name'] ?? 'Unnamed'),
+      subtitle: Text(user['email'] ?? 'No email'),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.article, color: Colors.blue),
+            onPressed: () => _openUserPosts(user['id'], user['full_name'] ?? 'User'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.admin_panel_settings, color: Colors.purple),
+            onPressed: () => _editUserRoles(user),
+          ),
+          Switch(
+            value: isDeleted,
+            onChanged: (_) => _toggleUserDeleted(user['id'], isDeleted),
+            activeColor: Colors.red,
+            inactiveThumbColor: Colors.green,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserCard(Map<String, dynamic> user) {
+    final isDeleted = user['is_deleted'] ?? false;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(child: Text(user['full_name']?[0]?.toUpperCase() ?? '?')),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(user['full_name'] ?? 'Unnamed', style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(user['email'] ?? 'No email'),
+            const Spacer(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 IconButton(
                   icon: const Icon(Icons.article, color: Colors.blue),
-                  tooltip: 'Manage Posts',
                   onPressed: () => _openUserPosts(user['id'], user['full_name'] ?? 'User'),
                 ),
                 IconButton(
                   icon: const Icon(Icons.admin_panel_settings, color: Colors.purple),
-                  tooltip: 'Manage Roles',
                   onPressed: () => _editUserRoles(user),
                 ),
                 Switch(
@@ -383,8 +413,49 @@ class _UsersScreenState extends State<UsersScreen> {
                 ),
               ],
             ),
-          );
-        },
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Manage Users')),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _users.isEmpty
+          ? const Center(child: Text("No users found."))
+          : ResponsiveUtil.responsiveValue(
+        context: context,
+        mobile: ListView.separated(
+          itemCount: _users.length,
+          separatorBuilder: (_, __) => const Divider(height: 1),
+          itemBuilder: (context, index) => _buildUserTile(_users[index]),
+        ),
+        tablet: GridView.builder(
+          padding: const EdgeInsets.all(16),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: 3,
+          ),
+          itemCount: _users.length,
+          itemBuilder: (context, index) => _buildUserCard(_users[index]),
+        ),
+        desktop: GridView.builder(
+          padding: const EdgeInsets.all(24),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 4,
+            crossAxisSpacing: 24,
+            mainAxisSpacing: 24,
+            childAspectRatio: 3,
+          ),
+          itemCount: _users.length,
+          itemBuilder: (context, index) => _buildUserCard(_users[index]),
+        ),
       ),
     );
   }

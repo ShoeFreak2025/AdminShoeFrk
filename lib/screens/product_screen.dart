@@ -3,6 +3,7 @@ import 'package:shoefrk_admin/screens/artworks_tab.dart';
 import 'package:shoefrk_admin/screens/orders_screen.dart';
 import 'package:shoefrk_admin/screens/shoes_tab.dart';
 import 'package:shoefrk_admin/screens/reported_shoes_tab.dart';
+import 'package:shoefrk_admin/screens/dashboard_screen.dart';
 import 'package:shoefrk_admin/utils/responsive_util.dart';
 
 class ProductScreen extends StatelessWidget {
@@ -19,7 +20,12 @@ class ProductScreen extends StatelessWidget {
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const DashboardScreen()),
+              );
+            },
           ),
           title: Text(
             'Manage Products',

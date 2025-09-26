@@ -414,65 +414,126 @@ class _UsersScreenState extends State<UsersScreen> {
 
   Widget _buildUserCard(Map<String, dynamic> user) {
     final isDeleted = user['is_deleted'] ?? false;
+    final roles = user['role'] as List? ?? [];
+
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 16,
-                  child: Text(user['full_name']?[0]?.toUpperCase() ?? '?'),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    user['full_name'] ?? 'Unnamed',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
+      elevation: 2,
+      child: IntrinsicHeight(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    child: Text(
+                      user['full_name']?[0]?.toUpperCase() ?? '?',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
                   ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      user['full_name'] ?? 'Unnamed',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                user['email'] ?? 'No email',
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
+              ),
+              if (roles.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: roles
+                      .take(3)
+                      .map((role) => Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: _getRoleColor(role.toString()),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      role.toString(),
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ))
+                      .toList(),
                 ),
               ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              user['email'] ?? 'No email',
-              style: const TextStyle(fontSize: 12),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 2,
-            ),
-            const Spacer(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                IconButton(
-                  iconSize: 20,
-                  icon: const Icon(Icons.article, color: Colors.blue),
-                  onPressed: () => _openUserPosts(user['id'], user['full_name'] ?? 'User'),
-                ),
-                IconButton(
-                  iconSize: 20,
-                  icon: const Icon(Icons.admin_panel_settings, color: Colors.purple),
-                  onPressed: () => _editUserRoles(user),
-                ),
-                Transform.scale(
-                  scale: 0.8,
-                  child: Switch(
-                    value: isDeleted,
-                    onChanged: (_) => _toggleUserDeleted(user['id'], isDeleted),
-                    activeColor: Colors.red,
-                    inactiveThumbColor: Colors.green,
+              const Spacer(),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        iconSize: 16,
+                        padding: const EdgeInsets.all(4),
+                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                        icon: const Icon(Icons.article, color: Colors.blue),
+                        onPressed: () => _openUserPosts(user['id'], user['full_name'] ?? 'User'),
+                        tooltip: 'Posts',
+                      ),
+                      IconButton(
+                        iconSize: 16,
+                        padding: const EdgeInsets.all(4),
+                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                        icon: const Icon(Icons.admin_panel_settings, color: Colors.purple),
+                        onPressed: () => _editUserRoles(user),
+                        tooltip: 'Roles',
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-          ],
+                  Transform.scale(
+                    scale: 0.7,
+                    child: Switch(
+                      value: isDeleted,
+                      onChanged: (_) => _toggleUserDeleted(user['id'], isDeleted),
+                      activeColor: Colors.red,
+                      inactiveThumbColor: Colors.green,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  Color _getRoleColor(String role) {
+    switch (role.toLowerCase()) {
+      case 'admin':
+        return Colors.red;
+      case 'seller':
+        return Colors.green;
+      case 'artist':
+        return Colors.purple;
+      case 'buyer':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
   }
 
   Widget _buildBody() {
@@ -491,27 +552,34 @@ class _UsersScreenState extends State<UsersScreen> {
         separatorBuilder: (_, __) => const Divider(height: 1),
         itemBuilder: (context, index) => _buildUserTile(_users[index]),
       ),
-      tablet: GridView.builder(
-        padding: const EdgeInsets.all(16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 2.5,
-        ),
-        itemCount: _users.length,
-        itemBuilder: (context, index) => _buildUserCard(_users[index]),
-      ),
-      desktop: GridView.builder(
-        padding: const EdgeInsets.all(24),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 24,
-          mainAxisSpacing: 24,
-          childAspectRatio: 2.8,
-        ),
-        itemCount: _users.length,
-        itemBuilder: (context, index) => _buildUserCard(_users[index]),
+      tablet: _buildResponsiveGrid(crossAxisCount: 3),
+      desktop: _buildResponsiveGrid(crossAxisCount: 5),
+    );
+  }
+
+  Widget _buildResponsiveGrid({required int crossAxisCount}) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          for (int i = 0; i < _users.length; i += crossAxisCount)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (int j = 0; j < crossAxisCount; j++)
+                      if (i + j < _users.length) ...[
+                        Expanded(child: _buildUserCard(_users[i + j])),
+                        if (j < crossAxisCount - 1) const SizedBox(width: 16),
+                      ] else
+                        const Expanded(child: SizedBox()),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

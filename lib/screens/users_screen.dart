@@ -4,11 +4,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shoefrk_admin/utils/admin_logger.dart';
 import 'package:shoefrk_admin/utils/responsive_util.dart';
+import 'package:shoefrk_admin/widgets/sidebar_widget.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 
 class UsersScreen extends StatefulWidget {
-  const UsersScreen({Key? key}) : super(key: key);
+  final Function(String)? onNavigate;
+
+  const UsersScreen({Key? key, this.onNavigate}) : super(key: key);
 
   @override
   State<UsersScreen> createState() => _UsersScreenState();
@@ -31,6 +34,38 @@ class _UsersScreenState extends State<UsersScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message), backgroundColor: Colors.red),
       );
+    }
+  }
+
+  // Navigation handler
+  void _handleNavigation(String route) {
+    if (widget.onNavigate != null) {
+      // Use the provided navigation callback
+      widget.onNavigate!(route);
+    } else {
+      // Fallback to named route navigation
+      String routeName;
+      switch (route) {
+        case 'dashboard':
+          routeName = '/dashboard';
+          break;
+        case 'users':
+          routeName = '/users';
+          break;
+        case 'seller_verification':
+          routeName = '/seller-verification';
+          break;
+        case 'products':
+          routeName = '/products';
+          break;
+        case 'release_payouts':
+          routeName = '/release-payouts';
+          break;
+        default:
+          routeName = '/dashboard';
+      }
+
+      Navigator.of(context).pushReplacementNamed(routeName);
     }
   }
 
@@ -350,8 +385,14 @@ class _UsersScreenState extends State<UsersScreen> {
     final isDeleted = user['is_deleted'] ?? false;
     return ListTile(
       leading: CircleAvatar(child: Text(user['full_name']?[0]?.toUpperCase() ?? '?')),
-      title: Text(user['full_name'] ?? 'Unnamed'),
-      subtitle: Text(user['email'] ?? 'No email'),
+      title: Text(
+        user['full_name'] ?? 'Unnamed',
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Text(
+        user['email'] ?? 'No email',
+        overflow: TextOverflow.ellipsis,
+      ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -384,32 +425,50 @@ class _UsersScreenState extends State<UsersScreen> {
           children: [
             Row(
               children: [
-                CircleAvatar(child: Text(user['full_name']?[0]?.toUpperCase() ?? '?')),
+                CircleAvatar(
+                  radius: 16,
+                  child: Text(user['full_name']?[0]?.toUpperCase() ?? '?'),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(user['full_name'] ?? 'Unnamed', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  child: Text(
+                    user['full_name'] ?? 'Unnamed',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 4),
-            Text(user['email'] ?? 'No email'),
+            const SizedBox(height: 8),
+            Text(
+              user['email'] ?? 'No email',
+              style: const TextStyle(fontSize: 12),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
+            ),
             const Spacer(),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 IconButton(
+                  iconSize: 20,
                   icon: const Icon(Icons.article, color: Colors.blue),
                   onPressed: () => _openUserPosts(user['id'], user['full_name'] ?? 'User'),
                 ),
                 IconButton(
+                  iconSize: 20,
                   icon: const Icon(Icons.admin_panel_settings, color: Colors.purple),
                   onPressed: () => _editUserRoles(user),
                 ),
-                Switch(
-                  value: isDeleted,
-                  onChanged: (_) => _toggleUserDeleted(user['id'], isDeleted),
-                  activeColor: Colors.red,
-                  inactiveThumbColor: Colors.green,
+                Transform.scale(
+                  scale: 0.8,
+                  child: Switch(
+                    value: isDeleted,
+                    onChanged: (_) => _toggleUserDeleted(user['id'], isDeleted),
+                    activeColor: Colors.red,
+                    inactiveThumbColor: Colors.green,
+                  ),
                 ),
               ],
             ),
@@ -419,43 +478,120 @@ class _UsersScreenState extends State<UsersScreen> {
     );
   }
 
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_users.isEmpty) {
+      return const Center(child: Text("No users found."));
+    }
+
+    return ResponsiveUtil.responsiveValue(
+      context: context,
+      mobile: ListView.separated(
+        itemCount: _users.length,
+        separatorBuilder: (_, __) => const Divider(height: 1),
+        itemBuilder: (context, index) => _buildUserTile(_users[index]),
+      ),
+      tablet: GridView.builder(
+        padding: const EdgeInsets.all(16),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 2.5,
+        ),
+        itemCount: _users.length,
+        itemBuilder: (context, index) => _buildUserCard(_users[index]),
+      ),
+      desktop: GridView.builder(
+        padding: const EdgeInsets.all(24),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 24,
+          mainAxisSpacing: 24,
+          childAspectRatio: 2.8,
+        ),
+        itemCount: _users.length,
+        itemBuilder: (context, index) => _buildUserCard(_users[index]),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Check if this screen has navigation callback (meaning it's part of a larger app with sidebar)
+    if (widget.onNavigate != null) {
+      // Return just the body - the parent widget will handle the scaffold and sidebar
+      return _buildBody();
+    }
+
+    // For standalone usage with responsive sidebar/drawer
     return Scaffold(
-      appBar: AppBar(title: const Text('Manage Users')),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _users.isEmpty
-          ? const Center(child: Text("No users found."))
-          : ResponsiveUtil.responsiveValue(
-        context: context,
-        mobile: ListView.separated(
-          itemCount: _users.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
-          itemBuilder: (context, index) => _buildUserTile(_users[index]),
-        ),
-        tablet: GridView.builder(
-          padding: const EdgeInsets.all(16),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: 3,
+      appBar: ResponsiveUtil.isMobile(context)
+          ? AppBar(
+        title: const Text('Manage Users'),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
           ),
-          itemCount: _users.length,
-          itemBuilder: (context, index) => _buildUserCard(_users[index]),
         ),
-        desktop: GridView.builder(
-          padding: const EdgeInsets.all(24),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 4,
-            crossAxisSpacing: 24,
-            mainAxisSpacing: 24,
-            childAspectRatio: 3,
+      )
+          : null,
+      drawer: ResponsiveUtil.isMobile(context)
+          ? SidebarWidget(
+        onNavigate: _handleNavigation, // Use the proper handler
+        currentRoute: 'users',
+      )
+          : null,
+      body: Row(
+        children: [
+          // Desktop sidebar
+          if (ResponsiveUtil.isDesktop(context))
+            SidebarWidget(
+              onNavigate: _handleNavigation, // Use the proper handler
+              currentRoute: 'users',
+            ),
+          // Main content
+          Expanded(
+            child: Column(
+              children: [
+                // Desktop app bar
+                if (ResponsiveUtil.isDesktop(context))
+                  Container(
+                    height: 60,
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.1),
+                          spreadRadius: 1,
+                          blurRadius: 3,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      children: [
+                        Text(
+                          'Manage Users',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                // Main content body
+                Expanded(child: _buildBody()),
+              ],
+            ),
           ),
-          itemCount: _users.length,
-          itemBuilder: (context, index) => _buildUserCard(_users[index]),
-        ),
+        ],
       ),
     );
   }

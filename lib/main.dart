@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shoefrk_admin/screens/ReleasePayoutScreen.dart';
+import 'package:shoefrk_admin/screens/product_screen.dart';
+import 'package:shoefrk_admin/screens/seller_verification_screen.dart';
+import 'package:shoefrk_admin/screens/users_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
@@ -25,11 +29,20 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const AuthWrapper(),
       debugShowCheckedModeBanner: false,
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const AuthWrapper(),
+        '/dashboard': (context) => const DashboardScreen(),
+        '/users': (context) => const UsersScreen(),
+        '/seller-verification': (context) => const SellerVerificationScreen(),
+        '/products': (context) => const ProductScreen(),
+        '/release-payouts': (context) => const ReleasePayoutScreen(),
+      },
     );
   }
 }
+
 
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({Key? key}) : super(key: key);

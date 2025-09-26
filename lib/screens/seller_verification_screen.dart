@@ -18,7 +18,6 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen>
   List<dynamic> _applications = [];
   bool _loading = true;
 
-  // Animation controllers
   late AnimationController _fadeController;
   late AnimationController _scaleController;
   late Animation<double> _fadeAnimation;
@@ -28,7 +27,6 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen>
   void initState() {
     super.initState();
 
-    // Initialize animations
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -55,7 +53,6 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen>
     super.dispose();
   }
 
-  // Navigation handler
   void _handleNavigation(String route) {
     if (widget.onNavigate != null) {
       widget.onNavigate!(route);
@@ -99,7 +96,6 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen>
         _loading = false;
       });
 
-      // Start animations
       _fadeController.forward();
       _scaleController.forward();
     } catch (e) {
@@ -126,7 +122,6 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen>
       return;
     }
 
-    // Show loading indicator
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -192,14 +187,13 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen>
         },
       );
 
-      Navigator.pop(context); // Close loading dialog
+      Navigator.pop(context);
 
-      // Show success animation
       _showSuccessAnimation(status == 'approved' ? 'approved' : 'rejected');
 
       await _fetchApplications();
     } catch (e) {
-      Navigator.pop(context); // Close loading dialog
+      Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error updating application: $e')),
       );
@@ -250,7 +244,6 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen>
       },
     );
 
-    // Auto close after 1.5 seconds
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted) Navigator.pop(context);
     });
@@ -334,7 +327,6 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Header with user info
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
@@ -407,7 +399,6 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen>
 
                         const SizedBox(height: 16),
 
-                        // Application details
                         _buildDetailRow(
                           Icons.badge,
                           'Valid ID Type',
@@ -424,7 +415,6 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen>
 
                         const SizedBox(height: 16),
 
-                        // ID Images
                         if (validIds.isNotEmpty) ...[
                           Text(
                             'Valid ID Images:',
@@ -490,7 +480,6 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen>
                           const SizedBox(height: 20),
                         ],
 
-                        // Action buttons
                         ResponsiveUtil.isMobile(context)
                             ? Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -697,13 +686,9 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Check if this screen has navigation callback (meaning it's part of a larger app with sidebar)
     if (widget.onNavigate != null) {
-      // Return just the body - the parent widget will handle the scaffold and sidebar
       return _buildBody();
     }
-
-    // For standalone usage with responsive sidebar/drawer
     return Scaffold(
       appBar: ResponsiveUtil.isMobile(context)
           ? AppBar(
@@ -727,17 +712,14 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen>
           : null,
       body: Row(
         children: [
-          // Desktop sidebar
           if (ResponsiveUtil.isDesktop(context))
             SidebarWidget(
               onNavigate: _handleNavigation,
               currentRoute: 'seller_verification',
             ),
-          // Main content
           Expanded(
             child: Column(
               children: [
-                // Desktop app bar
                 if (ResponsiveUtil.isDesktop(context))
                   Container(
                     height: 70,
@@ -774,7 +756,6 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen>
                       ],
                     ),
                   ),
-                // Main content body
                 Expanded(child: _buildBody()),
               ],
             ),

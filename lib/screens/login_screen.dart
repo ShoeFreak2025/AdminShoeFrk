@@ -73,14 +73,12 @@ class _LoginScreenState extends State<LoginScreen>
           return;
         }
 
-        // Show success animation
         setState(() {
           _loginSuccess = true;
         });
 
         await Future.delayed(const Duration(seconds: 1));
         if (!mounted) return;
-        // TODO: Navigate to dashboard screen here
       }
     } on AuthException catch (error) {
       setState(() {
@@ -193,7 +191,6 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                           const SizedBox(height: 32),
 
-                          // Email
                           TextFormField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
@@ -219,7 +216,6 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                           const SizedBox(height: 16),
 
-                          // Password
                           TextFormField(
                             controller: _passwordController,
                             obscureText: true,
@@ -269,7 +265,6 @@ class _LoginScreenState extends State<LoginScreen>
                           ],
                           const SizedBox(height: 24),
 
-                          // Sign In Button with animation
                           SizedBox(
                             width: double.infinity,
                             height: 50,

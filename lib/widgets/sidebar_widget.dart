@@ -4,12 +4,12 @@ import '../utils/responsive_util.dart';
 
 class SidebarWidget extends StatelessWidget {
   final Function(String) onNavigate;
-  final String? currentRoute; // ✅ add this
+  final String? currentRoute;
 
   const SidebarWidget({
     Key? key,
     required this.onNavigate,
-    this.currentRoute, // ✅ optional
+    this.currentRoute,
   }) : super(key: key);
 
   @override
@@ -80,7 +80,7 @@ class SidebarWidget extends StatelessWidget {
           color: isActive ? Colors.blue.shade700 : Colors.black87,
         ),
       ),
-      tileColor: isActive ? Colors.blue.shade50 : null, // highlight background
+      tileColor: isActive ? Colors.blue.shade50 : null,
       selected: isActive,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),

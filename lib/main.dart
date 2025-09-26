@@ -30,7 +30,7 @@ class MyApp extends StatelessWidget {
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       debugShowCheckedModeBanner: false,
-      initialRoute: '/', // root
+      initialRoute: '/',
       routes: {
         '/': (context) => const AuthWrapper(),
         '/dashboard': (context) => const DashboardScreen(),

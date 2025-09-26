@@ -37,13 +37,10 @@ class _UsersScreenState extends State<UsersScreen> {
     }
   }
 
-  // Navigation handler
   void _handleNavigation(String route) {
     if (widget.onNavigate != null) {
-      // Use the provided navigation callback
       widget.onNavigate!(route);
     } else {
-      // Fallback to named route navigation
       String routeName;
       switch (route) {
         case 'dashboard':
@@ -521,13 +518,10 @@ class _UsersScreenState extends State<UsersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Check if this screen has navigation callback (meaning it's part of a larger app with sidebar)
     if (widget.onNavigate != null) {
-      // Return just the body - the parent widget will handle the scaffold and sidebar
       return _buildBody();
     }
 
-    // For standalone usage with responsive sidebar/drawer
     return Scaffold(
       appBar: ResponsiveUtil.isMobile(context)
           ? AppBar(
@@ -542,23 +536,20 @@ class _UsersScreenState extends State<UsersScreen> {
           : null,
       drawer: ResponsiveUtil.isMobile(context)
           ? SidebarWidget(
-        onNavigate: _handleNavigation, // Use the proper handler
+        onNavigate: _handleNavigation,
         currentRoute: 'users',
       )
           : null,
       body: Row(
         children: [
-          // Desktop sidebar
           if (ResponsiveUtil.isDesktop(context))
             SidebarWidget(
-              onNavigate: _handleNavigation, // Use the proper handler
+              onNavigate: _handleNavigation,
               currentRoute: 'users',
             ),
-          // Main content
           Expanded(
             child: Column(
               children: [
-                // Desktop app bar
                 if (ResponsiveUtil.isDesktop(context))
                   Container(
                     height: 60,
@@ -586,7 +577,6 @@ class _UsersScreenState extends State<UsersScreen> {
                       ],
                     ),
                   ),
-                // Main content body
                 Expanded(child: _buildBody()),
               ],
             ),

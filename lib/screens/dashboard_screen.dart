@@ -25,7 +25,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   bool _isLoading = true;
   String? _errorMessage;
 
-  // Animation controllers for wow effects
   late AnimationController _fadeController;
   late AnimationController _slideController;
   late AnimationController _scaleController;
@@ -81,7 +80,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    // Start pulse animation on repeat
     _pulseController.repeat(reverse: true);
   }
 
@@ -191,7 +189,6 @@ class _DashboardScreenState extends State<DashboardScreen>
         _isLoading = false;
       });
 
-      // Start animations when data is loaded
       _fadeController.forward();
       _slideController.forward();
       _scaleController.forward();
@@ -663,7 +660,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
       childAspectRatio: ResponsiveUtil.responsiveValue<double>(
         context: context,
-        mobile: 1.1, // Increased height for mobile
+        mobile: 1.1,
         tablet: 1.3,
         desktop: 1.4,
       ),
@@ -730,7 +727,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ),
                 ),
                 onTap: () {
-                  // Add haptic feedback or navigation
                 },
                 child: Padding(
                   padding: ResponsiveUtil.responsiveValue<EdgeInsets>(

@@ -11,11 +11,379 @@ import 'package:shoefrk_admin/widgets/top_items_widget.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shimmer/shimmer.dart';
 
+class AdminLog {
+  final int id;
+  final String adminId;
+  final String action;
+  final String? targetId;
+  final String? targetType;
+  final Map<String, dynamic>? details;
+  final DateTime createdAt;
+
+  AdminLog({
+    required this.id,
+    required this.adminId,
+    required this.action,
+    this.targetId,
+    this.targetType,
+    this.details,
+    required this.createdAt,
+  });
+
+  factory AdminLog.fromJson(Map<String, dynamic> json) {
+    return AdminLog(
+      id: json['id'],
+      adminId: json['admin_id'],
+      action: json['action'],
+      targetId: json['target_id'],
+      targetType: json['target_type'],
+      details: json['details'] != null ? Map<String, dynamic>.from(json['details']) : null,
+      createdAt: DateTime.parse(json['created_at']),
+    );
+  }
+}
+
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class AdminLogsDialog extends StatefulWidget {
+  const AdminLogsDialog({Key? key}) : super(key: key);
+
+  @override
+  _AdminLogsDialogState createState() => _AdminLogsDialogState();
+}
+
+class _AdminLogsDialogState extends State<AdminLogsDialog> {
+  final supabase = Supabase.instance.client;
+  List<AdminLog> _logs = [];
+  bool _isLoading = true;
+  String _selectedFilter = 'ALL';
+
+  final List<String> _filters = [
+    'ALL',
+    'ANNOUNCEMENT_SENT',
+    'USER_APPROVED',
+    'USER_REJECTED',
+    'PAYOUT_RELEASED',
+    'PRODUCT_APPROVED'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAllLogs();
+  }
+
+  Future<void> _loadAllLogs() async {
+    setState(() => _isLoading = true);
+
+    try {
+      var query = supabase
+          .from('admin_logs')
+          .select('*');
+
+      if (_selectedFilter != 'ALL') {
+        query = query.eq('action', _selectedFilter);
+      }
+
+      final response = await query
+          .order('created_at', ascending: false)
+          .limit(50);
+
+      setState(() {
+        _logs = response.map((log) => AdminLog.fromJson(log)).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading logs: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.8,
+        height: MediaQuery.of(context).size.height * 0.8,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.history, color: Colors.indigo.shade600, size: 28),
+                const SizedBox(width: 12),
+                const Text(
+                  'Admin Activity Logs',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: DropdownButton<String>(
+                value: _selectedFilter,
+                isExpanded: true,
+                underline: const SizedBox(),
+                items: _filters.map((filter) {
+                  return DropdownMenuItem<String>(
+                    value: filter,
+                    child: Text(
+                      filter == 'ALL' ? 'All Activities' : _formatActionText(filter),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() => _selectedFilter = value!);
+                  _loadAllLogs();
+                },
+              ),
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _logs.isEmpty
+                  ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.history,
+                      size: 64,
+                      color: Colors.grey.shade400,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No logs found',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+                  : ListView.builder(
+                itemCount: _logs.length,
+                itemBuilder: (context, index) {
+                  final log = _logs[index];
+                  return _buildDetailedLogItem(log);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailedLogItem(AdminLog log) {
+    IconData icon;
+    Color color;
+
+    switch (log.action.toUpperCase()) {
+      case 'ANNOUNCEMENT_SENT':
+        icon = Icons.announcement;
+        color = Colors.blue;
+        break;
+      case 'USER_APPROVED':
+        icon = Icons.check_circle;
+        color = Colors.green;
+        break;
+      case 'USER_REJECTED':
+        icon = Icons.cancel;
+        color = Colors.red;
+        break;
+      case 'PAYOUT_RELEASED':
+        icon = Icons.payments;
+        color = Colors.purple;
+        break;
+      case 'PRODUCT_APPROVED':
+        icon = Icons.inventory;
+        color = Colors.teal;
+        break;
+      default:
+        icon = Icons.info;
+        color = Colors.grey;
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: color, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _formatActionText(log.action),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Admin ID: ${log.adminId}',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      _formatFullTimestamp(log.createdAt),
+                      style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            if (log.targetId != null || log.details != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (log.targetId != null) ...[
+                      Row(
+                        children: [
+                          Icon(Icons.gps_fixed, size: 16, color: Colors.grey.shade600),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Target: ${log.targetType ?? 'Unknown'} (${log.targetId})',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (log.details != null) ...[
+                      if (log.targetId != null) const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.info_outline, size: 16, color: Colors.grey.shade600),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _getDetailedLogDescription(log),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatActionText(String action) {
+    return action.replaceAll('_', ' ').toLowerCase().split(' ')
+        .map((word) => word.isEmpty ? word : word[0].toUpperCase() + word.substring(1))
+        .join(' ');
+  }
+
+  String _getDetailedLogDescription(AdminLog log) {
+    if (log.details == null) return 'No additional details';
+
+    switch (log.action.toUpperCase()) {
+      case 'ANNOUNCEMENT_SENT':
+        return 'Message: "${log.details!['content'] ?? 'No content'}"';
+      case 'USER_APPROVED':
+      case 'USER_REJECTED':
+        return 'User verification status changed';
+      case 'PAYOUT_RELEASED':
+        final amount = log.details!['amount'] ?? 0;
+        return 'Payout amount: ₱${amount.toString()}';
+      case 'PRODUCT_APPROVED':
+        return 'Product approved for listing';
+      default:
+        return log.details!.entries
+            .map((e) => '${e.key}: ${e.value}')
+            .join(', ');
+    }
+  }
+
+  String _formatFullTimestamp(DateTime timestamp) {
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+
+    final month = months[timestamp.month - 1];
+    final day = timestamp.day.toString().padLeft(2, '0');
+    final hour = timestamp.hour.toString().padLeft(2, '0');
+    final minute = timestamp.minute.toString().padLeft(2, '0');
+
+    return '$month $day, ${hour}:${minute}';
+  }
 }
 
 class _DashboardScreenState extends State<DashboardScreen>
@@ -24,6 +392,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   DashboardStats? _stats;
   bool _isLoading = true;
   String? _errorMessage;
+  List<AdminLog> _recentLogs = [];
 
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -70,7 +439,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutBack));
+    ).animate(
+        CurvedAnimation(parent: _slideController, curve: Curves.easeOutBack));
 
     _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _scaleController, curve: Curves.elasticOut),
@@ -175,6 +545,15 @@ class _DashboardScreenState extends State<DashboardScreen>
           .or('is_seller.eq.true,role.cs.{"seller"}')
           .eq('status', 'PENDING');
 
+      final logsResponse = await supabase
+          .from('admin_logs')
+          .select('*')
+          .order('created_at', ascending: false)
+          .limit(5);
+
+      final recentLogs = logsResponse.map((log) => AdminLog.fromJson(log))
+          .toList();
+
       setState(() {
         _stats = DashboardStats(
           totalSellers: sellersResponse.length,
@@ -186,13 +565,17 @@ class _DashboardScreenState extends State<DashboardScreen>
           activeSellers: activeSellersResponse,
           pendingSellers: pendingSellersResponse.length,
         );
+        _recentLogs = recentLogs;
         _isLoading = false;
       });
 
       _fadeController.forward();
       _slideController.forward();
       _scaleController.forward();
+
+      print('Dashboard data loaded successfully');
     } catch (e) {
+      print('Error loading dashboard data: $e');
       setState(() {
         _errorMessage = 'Failed to load dashboard data: $e';
         _isLoading = false;
@@ -205,79 +588,112 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     await showDialog(
       context: context,
-      builder: (context) => ScaleTransition(
-        scale: _scaleAnimation,
-        child: AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: [
-              Icon(Icons.announcement, color: Colors.blue.shade600),
-              const SizedBox(width: 8),
-              const Text('Create Announcement'),
-            ],
-          ),
-          content: TextField(
-            controller: _controller,
-            maxLines: 5,
-            decoration: InputDecoration(
-              hintText: 'Enter your message here...',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+      builder: (context) =>
+          ScaleTransition(
+            scale: _scaleAnimation,
+            child: AlertDialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  Icon(Icons.announcement, color: Colors.blue.shade600),
+                  const SizedBox(width: 8),
+                  const Text('Create Announcement'),
+                ],
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.blue.shade600, width: 2),
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.blue.shade600, Colors.blue.shade400],
+              content: TextField(
+                controller: _controller,
+                maxLines: 5,
+                decoration: InputDecoration(
+                  hintText: 'Enter your message here...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                        color: Colors.blue.shade600, width: 2),
+                  ),
                 ),
-                borderRadius: BorderRadius.circular(8),
               ),
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
                 ),
-                onPressed: () async {
-                  final content = _controller.text.trim();
-                  if (content.isNotEmpty) {
-                    final currentUser = supabase.auth.currentUser;
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.blue.shade600, Colors.blue.shade400],
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                    ),
+                    onPressed: () async {
+                      final content = _controller.text.trim();
+                      if (content.isNotEmpty) {
+                        final currentUser = supabase.auth.currentUser;
 
-                    if (currentUser != null) {
-                      await supabase.from('notifications').insert({
-                        'user_id': currentUser.id,
-                        'title': 'announcement',
-                        'content': content,
-                        'is_read': false,
-                      });
-                    }
+                        if (currentUser != null) {
+                          await supabase.from('notifications').insert({
+                            'user_id': currentUser.id,
+                            'title': 'announcement',
+                            'content': content,
+                            'is_read': false,
+                          });
 
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('Announcement sent!'),
-                        backgroundColor: Colors.green,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                    );
-                  }
-                },
-                child: const Text('Send', style: TextStyle(color: Colors.white)),
-              ),
+                          await _logAdminAction(
+                              'ANNOUNCEMENT_SENT', null, 'notification', {
+                            'content': content,
+                            'timestamp': DateTime.now().toIso8601String(),
+                          });
+                        }
+
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Announcement sent!'),
+                            backgroundColor: Colors.green,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                          ),
+                        );
+                        _loadDashboardData();
+                      }
+                    },
+                    child: const Text(
+                        'Send', style: TextStyle(color: Colors.white)),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+    );
+  }
+
+  Future<void> _logAdminAction(String action, String? targetId,
+      String? targetType, Map<String, dynamic>? details) async {
+    final currentUser = supabase.auth.currentUser;
+    if (currentUser != null) {
+      await supabase.from('admin_logs').insert({
+        'admin_id': currentUser.id,
+        'action': action,
+        'target_id': targetId,
+        'target_type': targetType,
+        'details': details,
+      });
+    }
+  }
+
+  Future<void> _showAllLogsDialog() async {
+    await showDialog(
+      context: context,
+      builder: (context) => const AdminLogsDialog(),
     );
   }
 
@@ -301,7 +717,8 @@ class _DashboardScreenState extends State<DashboardScreen>
               position: Tween<Offset>(
                 begin: const Offset(1.0, 0.0),
                 end: Offset.zero,
-              ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+              ).animate(
+                  CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
               child: child,
             );
           },
@@ -309,6 +726,166 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
       );
     }
+  }
+
+  Widget _buildEnhancedStatsGrid() {
+    if (_stats == null) return const SizedBox();
+
+    final stats = [
+      {
+        'title': 'Total Sellers',
+        'value': _stats!.totalSellers.toString(),
+        'icon': Icons.store,
+        'color': Colors.blue,
+        'gradient': [Colors.blue.shade600, Colors.blue.shade400],
+      },
+      {
+        'title': 'Total Buyers',
+        'value': _stats!.totalBuyers.toString(),
+        'icon': Icons.people,
+        'color': Colors.green,
+        'gradient': [Colors.green.shade600, Colors.green.shade400],
+      },
+      {
+        'title': 'Total Revenue',
+        'value': '₱${_stats!.totalRevenue.toStringAsFixed(2)}',
+        'icon': Icons.monetization_on,
+        'color': Colors.orange,
+        'gradient': [Colors.orange.shade600, Colors.orange.shade400],
+      },
+      {
+        'title': 'Commission Earned',
+        'value': '₱${_stats!.commissionEarned.toStringAsFixed(2)}',
+        'icon': Icons.account_balance_wallet,
+        'color': Colors.purple,
+        'gradient': [Colors.purple.shade600, Colors.purple.shade400],
+      },
+      {
+        'title': 'Admin Wallet',
+        'value': '₱${_stats!.adminWallet.toStringAsFixed(2)}',
+        'icon': Icons.savings,
+        'color': Colors.teal,
+        'gradient': [Colors.teal.shade600, Colors.teal.shade400],
+      },
+      {
+        'title': 'Pending Sellers',
+        'value': _stats!.pendingSellers.toString(),
+        'icon': Icons.pending_actions,
+        'color': Colors.red,
+        'gradient': [Colors.red.shade600, Colors.red.shade400],
+      },
+    ];
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: ResponsiveUtil.responsiveValue<int>(
+          context: context,
+          mobile: 2,
+          tablet: 3,
+          desktop: 3,
+        ),
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: ResponsiveUtil.responsiveValue<double>(
+          context: context,
+          mobile: 1.2,
+          tablet: 1.3,
+          desktop: 1.4,
+        ),
+      ),
+      itemCount: stats.length,
+      itemBuilder: (context, index) {
+        final stat = stats[index];
+        return AnimatedBuilder(
+          animation: _pulseAnimation,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: index == 0 ? _pulseAnimation.value : 1.0,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: stat['gradient'] as List<Color>,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (stat['color'] as Color).withOpacity(0.3),
+                      blurRadius: 15,
+                      offset: const Offset(0, 8),
+                      spreadRadius: 0,
+                    ),
+                  ],
+                ),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withOpacity(0.1),
+                        Colors.transparent,
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              stat['icon'] as IconData,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                          const Spacer(),
+                          if (stat['title'] == 'Total Revenue')
+                            Icon(
+                              Icons.trending_up,
+                              color: Colors.white.withOpacity(0.7),
+                              size: 16,
+                            ),
+                        ],
+                      ),
+                      const Spacer(),
+                      Text(
+                        stat['value'] as String,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        stat['title'] as String,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white.withOpacity(0.9),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -356,7 +933,10 @@ class _DashboardScreenState extends State<DashboardScreen>
             margin: const EdgeInsets.symmetric(vertical: 8),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Colors.white.withOpacity(0.2), Colors.white.withOpacity(0.1)],
+                colors: [
+                  Colors.white.withOpacity(0.2),
+                  Colors.white.withOpacity(0.1)
+                ],
               ),
               borderRadius: BorderRadius.circular(20),
             ),
@@ -412,20 +992,21 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
           children: List.generate(
             6,
-                (i) => Container(
-              margin: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+                (i) =>
+                Container(
+                  margin: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
           ),
         ),
       ),
@@ -447,7 +1028,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: Colors.red.shade200),
               ),
-              child: Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
+              child: Icon(
+                  Icons.error_outline, size: 64, color: Colors.red.shade400),
             ),
             const SizedBox(height: 16),
             Text(
@@ -467,10 +1049,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
                   shadowColor: Colors.transparent,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24, vertical: 12),
                 ),
                 onPressed: _loadDashboardData,
-                child: const Text('Retry', style: TextStyle(color: Colors.white)),
+                child: const Text(
+                    'Retry', style: TextStyle(color: Colors.white)),
               ),
             ),
           ],
@@ -521,7 +1105,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(child: _buildEnhancedWidget(TopItemsWidget())),
+                      Expanded(child: _buildEnhancedWidget(const TopItemsWidget())),
                       const SizedBox(width: 24),
                       Expanded(
                         child: _buildEnhancedWidget(
@@ -533,7 +1117,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 )
                     : Column(
                   children: [
-                    _buildEnhancedWidget(TopItemsWidget()),
+                    _buildEnhancedWidget(const TopItemsWidget()),
                     const SizedBox(height: 24),
                     _buildEnhancedWidget(
                       ActiveSellersWidget(sellers: _stats!.activeSellers),
@@ -541,11 +1125,229 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ],
                 ),
               ),
+              const SizedBox(height: 32),
+              ScaleTransition(
+                scale: _scaleAnimation,
+                child: _buildEnhancedWidget(_buildAdminLogsWidget()),
+              ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildAdminLogsWidget() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.white, Colors.grey.shade50],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.indigo.withOpacity(0.1),
+                      Colors.indigo.withOpacity(0.05)
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.history,
+                  color: Colors.indigo.shade600,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Recent Admin Activities',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade800,
+                ),
+              ),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: _showAllLogsDialog,
+                icon: Icon(
+                    Icons.visibility, size: 16, color: Colors.indigo.shade600),
+                label: Text(
+                  'See All',
+                  style: TextStyle(
+                    color: Colors.indigo.shade600,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          if (_recentLogs.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(20),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.history, size: 48, color: Colors.grey.shade400),
+                    const SizedBox(height: 8),
+                    Text(
+                      'No recent activities',
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            Column(
+              children: _recentLogs.take(5)
+                  .map((log) => _buildLogItem(log))
+                  .toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLogItem(AdminLog log) {
+    IconData icon;
+    Color color;
+
+    switch (log.action.toUpperCase()) {
+      case 'ANNOUNCEMENT_SENT':
+        icon = Icons.announcement;
+        color = Colors.blue;
+        break;
+      case 'USER_APPROVED':
+        icon = Icons.check_circle;
+        color = Colors.green;
+        break;
+      case 'USER_REJECTED':
+        icon = Icons.cancel;
+        color = Colors.red;
+        break;
+      case 'PAYOUT_RELEASED':
+        icon = Icons.payments;
+        color = Colors.purple;
+        break;
+      case 'PRODUCT_APPROVED':
+        icon = Icons.inventory;
+        color = Colors.teal;
+        break;
+      default:
+        icon = Icons.info;
+        color = Colors.grey;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _formatActionText(log.action),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade800,
+                    fontSize: 14,
+                  ),
+                ),
+                if (log.details != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _getLogDescription(log),
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Text(
+            _formatTimestamp(log.createdAt),
+            style: TextStyle(
+              color: Colors.grey.shade500,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatActionText(String action) {
+    return action.replaceAll('_', ' ').toLowerCase().split(' ')
+        .map((word) =>
+    word.isEmpty ? word : word[0].toUpperCase() + word.substring(1))
+        .join(' ');
+  }
+
+  String _getLogDescription(AdminLog log) {
+    if (log.details == null) return '';
+
+    switch (log.action.toUpperCase()) {
+      case 'ANNOUNCEMENT_SENT':
+        return log.details!['content'] ?? '';
+      case 'USER_APPROVED':
+      case 'USER_REJECTED':
+        return 'User ID: ${log.targetId ?? 'Unknown'}';
+      case 'PAYOUT_RELEASED':
+        final amount = log.details!['amount'] ?? 0;
+        return 'Amount: ₱${amount.toString()}';
+      default:
+        return log.details!.toString();
+    }
+  }
+
+  String _formatTimestamp(DateTime timestamp) {
+    final now = DateTime.now();
+    final diff = now.difference(timestamp);
+
+    if (diff.inMinutes < 1) {
+      return 'Just now';
+    } else if (diff.inHours < 1) {
+      return '${diff.inMinutes}m ago';
+    } else if (diff.inDays < 1) {
+      return '${diff.inHours}h ago';
+    } else {
+      return '${diff.inDays}d ago';
+    }
   }
 
   Widget _buildEnhancedWidget(Widget child) {
@@ -602,7 +1404,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Icon(Icons.dashboard, size: 48, color: Colors.white),
+                  child: const Icon(
+                      Icons.dashboard, size: 48, color: Colors.white),
                 ),
               );
             },
@@ -633,205 +1436,6 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildEnhancedStatsGrid() {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: ResponsiveUtil.responsiveValue<int>(
-        context: context,
-        mobile: 2,
-        tablet: 3,
-        desktop: 4,
-      ),
-      crossAxisSpacing: ResponsiveUtil.responsiveValue<double>(
-        context: context,
-        mobile: 12,
-        tablet: 16,
-        desktop: 20,
-      ),
-      mainAxisSpacing: ResponsiveUtil.responsiveValue<double>(
-        context: context,
-        mobile: 12,
-        tablet: 16,
-        desktop: 20,
-      ),
-      childAspectRatio: ResponsiveUtil.responsiveValue<double>(
-        context: context,
-        mobile: 1.1,
-        tablet: 1.3,
-        desktop: 1.4,
-      ),
-      children: [
-        _buildEnhancedStatCard('Total Sellers', _stats!.totalSellers,
-            Icons.store, Colors.blue, 0),
-        _buildEnhancedStatCard('Total Buyers', _stats!.totalBuyers,
-            Icons.people, Colors.green, 1),
-        _buildEnhancedStatCard('Admin Wallet', _stats!.adminWallet,
-            Icons.account_balance_wallet, Colors.teal, 2, isCurrency: true),
-        _buildEnhancedStatCard('Revenue', _stats!.totalRevenue, Icons.trending_up,
-            Colors.orange, 3, isCurrency: true),
-        _buildEnhancedStatCard('Commission', _stats!.commissionEarned,
-            Icons.attach_money, Colors.purple, 4, isCurrency: true),
-        _buildEnhancedStatCard('Pending Applications', _stats!.pendingSellers,
-            Icons.hourglass_empty, Colors.red, 5),
-      ],
-    );
-  }
-
-  Widget _buildEnhancedStatCard(String title, num value, IconData icon,
-      Color color, int index, {bool isCurrency = false}) {
-    return TweenAnimationBuilder<double>(
-      duration: Duration(milliseconds: 800 + (index * 100)),
-      tween: Tween(begin: 0.0, end: 1.0),
-      curve: Curves.elasticOut,
-      builder: (context, animValue, child) {
-        return Transform.scale(
-          scale: animValue,
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.white, Colors.grey.shade50],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(
-                ResponsiveUtil.responsiveValue<double>(
-                  context: context,
-                  mobile: 16,
-                  tablet: 18,
-                  desktop: 20,
-                ),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: color.withOpacity(0.1),
-                  blurRadius: 15,
-                  offset: const Offset(0, 8),
-                  spreadRadius: 0,
-                ),
-              ],
-              border: Border.all(color: color.withOpacity(0.1)),
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(
-                  ResponsiveUtil.responsiveValue<double>(
-                    context: context,
-                    mobile: 16,
-                    tablet: 18,
-                    desktop: 20,
-                  ),
-                ),
-                onTap: () {
-                },
-                child: Padding(
-                  padding: ResponsiveUtil.responsiveValue<EdgeInsets>(
-                    context: context,
-                    mobile: const EdgeInsets.all(12),
-                    tablet: const EdgeInsets.all(16),
-                    desktop: const EdgeInsets.all(20),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: ResponsiveUtil.responsiveValue<EdgeInsets>(
-                          context: context,
-                          mobile: const EdgeInsets.all(8),
-                          tablet: const EdgeInsets.all(10),
-                          desktop: const EdgeInsets.all(12),
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          icon,
-                          color: color,
-                          size: ResponsiveUtil.responsiveValue<double>(
-                            context: context,
-                            mobile: 20,
-                            tablet: 24,
-                            desktop: 28,
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        height: ResponsiveUtil.responsiveValue<double>(
-                          context: context,
-                          mobile: 8,
-                          tablet: 12,
-                          desktop: 16,
-                        ),
-                      ),
-                      Flexible(
-                        child: Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: ResponsiveUtil.responsiveValue<double>(
-                              context: context,
-                              mobile: 11,
-                              tablet: 13,
-                              desktop: 14,
-                            ),
-                            color: Colors.grey.shade600,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      SizedBox(
-                        height: ResponsiveUtil.responsiveValue<double>(
-                          context: context,
-                          mobile: 4,
-                          tablet: 6,
-                          desktop: 8,
-                        ),
-                      ),
-                      TweenAnimationBuilder<double>(
-                        duration: Duration(milliseconds: 1500 + (index * 200)),
-                        tween: Tween(begin: 0, end: value.toDouble()),
-                        curve: Curves.easeOutCubic,
-                        builder: (context, val, child) {
-                          final display = isCurrency
-                              ? '₱${val.toStringAsFixed(2)}'
-                              : val.toInt().toString();
-                          return Flexible(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                display,
-                                style: TextStyle(
-                                  fontSize: ResponsiveUtil.responsiveValue<double>(
-                                    context: context,
-                                    mobile: 16,
-                                    tablet: 20,
-                                    desktop: 22,
-                                  ),
-                                  fontWeight: FontWeight.bold,
-                                  color: color,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 }

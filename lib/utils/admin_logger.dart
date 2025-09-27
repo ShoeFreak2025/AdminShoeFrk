@@ -1,4 +1,6 @@
-import 'package:flutter/foundation.dart';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminLogger {
@@ -10,31 +12,43 @@ class AdminLogger {
     required String targetType,
     Map<String, dynamic>? details,
   }) async {
-    final user = _supabase.auth.currentUser;
-    if (user == null) {
-      debugPrint("⚠️ No logged-in admin to log action.");
+    final session = _supabase.auth.currentSession;
+
+    if (session == null) {
+      debugPrint("⚠️ Cannot log action: No active session.");
       return;
     }
 
     try {
-      final res = await _supabase.functions.invoke(
-        'log_action',
-        body: {
-          'admin_id': user.id,
-          'action': action,
-          'target_id': targetId,
-          'target_type': targetType,
-          'details': details,
-        },
+      final url = Uri.parse(
+        "${_supabase.supabaseUrl}/functions/v1/log_action",
       );
 
-      if (res.status == 200) {
-        debugPrint("✅ Log saved: ${res.data}");
+      final response = await http.post(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer ${session.accessToken}",
+        },
+        body: jsonEncode({
+          "action": action,
+          "target_id": targetId,
+          "target_type": targetType,
+          "details": details ?? {},
+        }),
+      );
+
+      debugPrint("📡 log_action status: ${response.statusCode}");
+      debugPrint("📡 log_action body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        debugPrint("✅ Admin action logged: $action → $targetType:$targetId");
       } else {
-        debugPrint("⚠️ Log failed [${res.status}]: ${res.data}");
+        debugPrint("⚠️ Failed to log action [${response.statusCode}] → ${response.body}");
       }
-    } catch (e) {
-      debugPrint("❌ Error logging action: $e");
+    } catch (e, st) {
+      debugPrint("❌ Error invoking log_action: $e");
+      debugPrint("$st");
     }
   }
 }

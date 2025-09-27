@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shoefrk_admin/utils/admin_logger.dart';
 import 'package:shoefrk_admin/utils/responsive_util.dart';
 import 'package:shoefrk_admin/widgets/sidebar_widget.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -106,6 +107,7 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen>
     }
   }
 
+
   Future<void> _updateApplicationStatus(
       String appId,
       String userId,
@@ -149,7 +151,6 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen>
       }).eq('id', appId);
 
       String roleToAssign = (appType == 'artist') ? 'artist' : 'seller';
-
       if (status == 'approved') {
         await supabase.rpc('add_user_role', params: {
           'user_id_input': userId,
@@ -170,20 +171,16 @@ class _SellerVerificationScreenState extends State<SellerVerificationScreen>
         'is_read': false,
       });
 
-      final adminId = session.user!.id;
-      await supabase.functions.invoke(
-        'log-admin-action',
-        body: {
-          'admin_id': adminId,
-          'action': (status == 'approved') ? 'approve_application' : 'reject_application',
-          'target_id': appId,
-          'target_type': 'seller_application',
-          'details': {
-            'appType': appType,
-            'status': status,
-            if (reason != null) 'reason': reason,
-            'assigned_role': (status == 'approved') ? roleToAssign : null,
-          },
+      await AdminLogger.logAction(
+        action: (status == 'approved') ? 'approve_application' : 'reject_application',
+        targetId: appId,
+        targetType: 'seller_application',
+        details: {
+          'admin_id': session.user!.id,
+          'appType': appType,
+          'status': status,
+          if (reason != null) 'reason': reason,
+          'assigned_role': (status == 'approved') ? roleToAssign : null,
         },
       );
 

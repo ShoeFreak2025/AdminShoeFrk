@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shoefrk_admin/utils/admin_logger.dart';
@@ -83,14 +84,22 @@ class _UsersScreenState extends State<UsersScreen> {
 
   Future<void> _toggleUserDeleted(String userId, bool currentValue) async {
     try {
-      await supabase.from('users').update({'is_deleted': !currentValue}).eq('id', userId);
+      final newStatus = !currentValue;
+
+      await supabase.from('users').update({'is_deleted': newStatus}).eq('id', userId);
       _loadUsers();
 
+      final admin = supabase.auth.currentUser;
       await AdminLogger.logAction(
         action: "toggle_user_status",
         targetId: userId,
         targetType: "user",
-        details: {"new_status": !currentValue},
+        details: {
+          "previous_status": currentValue,
+          "new_status": newStatus,
+          "performed_by": admin?.id,
+          "performed_at": DateTime.now().toIso8601String(),
+        },
       );
     } catch (e) {
       _showErrorSnackBar('Failed to update user: $e');
@@ -146,11 +155,18 @@ class _UsersScreenState extends State<UsersScreen> {
         }).eq('id', user['id']);
         _loadUsers();
 
+        final admin = supabase.auth.currentUser;
         await AdminLogger.logAction(
           action: "edit_user_roles",
           targetId: user['id'].toString(),
           targetType: "user",
-          details: {"roles": updatedRoles},
+          details: {
+            "previous_roles": user['role'],
+            "updated_roles": updatedRoles,
+            "is_admin_now": updatedRoles.contains('admin'),
+            "performed_by": admin?.id,
+            "performed_at": DateTime.now().toIso8601String(),
+          },
         );
       } catch (e) {
         _showErrorSnackBar('Failed to update roles: $e');
@@ -158,29 +174,174 @@ class _UsersScreenState extends State<UsersScreen> {
     }
   }
 
-  Future<void> _reportPost(Map<String, dynamic> post) async {
-    final user = supabase.auth.currentUser;
-    if (user == null) return;
+  Future<void> _openUserPosts(String userId, String userName) async {
+    showDialog(
+      context: context,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+      barrierDismissible: false,
+    );
 
+    try {
+      final posts = await supabase
+          .from('social_posts')
+          .select('*, social_post_comments(*)')
+          .eq('author_id', userId)
+          .order('created_at', ascending: false);
+
+      Navigator.pop(context);
+      if (!mounted) return;
+
+      final admin = supabase.auth.currentUser;
+      await AdminLogger.logAction(
+        action: "view_user_posts",
+        targetId: userId,
+        targetType: "user",
+        details: {
+          "viewed_by": admin?.id,
+          "user_name": userName,
+          "post_count": posts.length,
+          "performed_at": DateTime.now().toIso8601String(),
+        },
+      );
+
+      await showDialog(
+        context: context,
+        builder: (_) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: Text('Posts by $userName'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: posts.isEmpty
+                  ? const Text('No posts found.')
+                  : ListView.builder(
+                shrinkWrap: true,
+                itemCount: posts.length,
+                itemBuilder: (context, index) {
+                  final post = posts[index];
+                  final comments = post['social_post_comments'] as List<dynamic>;
+                  final mediaUrls = post['media_urls'] as List<dynamic>?;
+                  final hasMedia = mediaUrls != null && mediaUrls.isNotEmpty;
+
+                  return Card(
+                    child: ExpansionTile(
+                      title: Text(
+                        post['content'] ?? '[No Content]',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text('Comments: ${comments.length}'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.report, color: Colors.red),
+                            onPressed: () async {
+                              await _reportPost(post);
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Colors.orange),
+                            onPressed: () async {
+                              await _editPost(post, () {
+                                Navigator.pop(context);
+                                _openUserPosts(userId, userName);
+                              });
+                            },
+                          ),
+                          Switch(
+                            value: post['is_deleted'] ?? false,
+                            onChanged: (newValue) async {
+                              try {
+                                final oldValue = post['is_deleted'] ?? false;
+                                await supabase
+                                    .from('social_posts')
+                                    .update({'is_deleted': newValue})
+                                    .eq('id', post['id']);
+                                setDialogState(() => post['is_deleted'] = newValue);
+
+                                await AdminLogger.logAction(
+                                  action: "toggle_post_status",
+                                  targetId: post['id'].toString(),
+                                  targetType: "post",
+                                  details: {
+                                    "previous_status": oldValue,
+                                    "new_status": newValue,
+                                    "performed_by": admin?.id,
+                                    "performed_at": DateTime.now().toIso8601String(),
+                                  },
+                                );
+                              } catch (e) {
+                                _showErrorSnackBar('Failed to update post status: $e');
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                      children: [
+                        if (hasMedia)
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Image.network(
+                              mediaUrls!.first,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: 200,
+                            ),
+                          ),
+                        if (comments.isEmpty)
+                          const ListTile(title: Text('No comments found.'))
+                        else
+                          ...comments.map(
+                                (comment) => ListTile(
+                              title: Text(comment['comment'] ?? ''),
+                              subtitle: Text('By: ${comment['user_name'] ?? 'Anonymous'}'),
+                            ),
+                          )
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      Navigator.pop(context);
+      _showErrorSnackBar('Failed to open user posts: $e');
+    }
+  }
+
+  Future<void> _reportPost(Map<String, dynamic> post) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Report Post?'),
         content: const Text('Are you sure you want to report this post?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Report')),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Report'),
+          ),
         ],
       ),
     );
 
     if (confirm == true) {
       try {
+        final admin = supabase.auth.currentUser;
+        if (admin == null) return;
+
         await supabase.from('notifications').insert({
-          'user_id': user.id,
+          'user_id': admin.id,
           'seller_id': post['author_id'],
           'social_post_id': post['id'],
           'title': 'Post Report',
@@ -188,15 +349,27 @@ class _UsersScreenState extends State<UsersScreen> {
           'is_read': false,
         });
 
+        final content = post['content'] as String?;
+        final excerpt = content != null
+            ? content.substring(0, min(50, content.length))
+            : "";
+
         await AdminLogger.logAction(
           action: "report_post",
           targetId: post['id'].toString(),
           targetType: "post",
-          details: {"reported_by": user.id},
+          details: {
+            "reported_by": admin.id,
+            "author_id": post['author_id'],
+            "content_excerpt": excerpt,
+            "performed_at": DateTime.now().toIso8601String(),
+          },
         );
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Post reported successfully')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Post reported successfully')),
+          );
         }
       } catch (e) {
         _showErrorSnackBar('Failed to report post: $e');
@@ -219,7 +392,11 @@ class _UsersScreenState extends State<UsersScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: controller, maxLines: 5, decoration: const InputDecoration(labelText: 'Content')),
+                TextField(
+                  controller: controller,
+                  maxLines: 5,
+                  decoration: const InputDecoration(labelText: 'Content'),
+                ),
                 const SizedBox(height: 16),
                 if (pickedImage != null && previewImageBytes != null)
                   Image.memory(previewImageBytes!, height: 120, fit: BoxFit.cover)
@@ -251,6 +428,7 @@ class _UsersScreenState extends State<UsersScreen> {
             ElevatedButton(
               onPressed: () async {
                 try {
+                  final admin = supabase.auth.currentUser;
                   String? newImageUrl;
                   if (pickedImage != null) {
                     final bytes = await pickedImage!.readAsBytes();
@@ -262,9 +440,14 @@ class _UsersScreenState extends State<UsersScreen> {
                     newImageUrl = supabase.storage.from(bucket).getPublicUrl(path);
                   }
 
+                  final oldContent = post['content'];
+                  final oldMedia = mediaUrls;
+
                   await supabase.from('social_posts').update({
                     'content': controller.text.trim(),
-                    'media_urls': [if (newImageUrl != null) newImageUrl else if (currentImageUrl != null) currentImageUrl],
+                    'media_urls': [
+                      if (newImageUrl != null) newImageUrl else if (currentImageUrl != null) currentImageUrl
+                    ],
                     'updated_at': DateTime.now().toIso8601String()
                   }).eq('id', post['id']);
 
@@ -273,8 +456,12 @@ class _UsersScreenState extends State<UsersScreen> {
                     targetId: post['id'].toString(),
                     targetType: "post",
                     details: {
+                      "previous_content": oldContent,
                       "new_content": controller.text.trim(),
-                      "updated_media": newImageUrl ?? currentImageUrl
+                      "previous_media": oldMedia,
+                      "updated_media": newImageUrl ?? currentImageUrl,
+                      "performed_by": admin?.id,
+                      "performed_at": DateTime.now().toIso8601String(),
                     },
                   );
 
@@ -290,92 +477,6 @@ class _UsersScreenState extends State<UsersScreen> {
         ),
       ),
     );
-  }
-
-  Future<void> _openUserPosts(String userId, String userName) async {
-    showDialog(context: context, builder: (_) => const Center(child: CircularProgressIndicator()), barrierDismissible: false);
-
-    try {
-      final List<dynamic> posts = await supabase
-          .from('social_posts')
-          .select('*, social_post_comments(*)')
-          .eq('author_id', userId)
-          .order('created_at', ascending: false);
-
-      Navigator.pop(context);
-      if (!mounted) return;
-
-      await showDialog(
-        context: context,
-        builder: (_) => StatefulBuilder(
-          builder: (context, setDialogState) => AlertDialog(
-            title: Text('Posts by $userName'),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: posts.isEmpty
-                  ? const Text('No posts found.')
-                  : ListView.builder(
-                shrinkWrap: true,
-                itemCount: posts.length,
-                itemBuilder: (context, index) {
-                  final post = posts[index];
-                  final comments = post['social_post_comments'] as List<dynamic>;
-
-                  return Card(
-                    child: ExpansionTile(
-                      title: Text(post['content'] ?? '[No Content]', maxLines: 2, overflow: TextOverflow.ellipsis),
-                      subtitle: Text('Comments: ${comments.length}'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                              icon: const Icon(Icons.report, color: Colors.red),
-                              onPressed: () => _reportPost(post)),
-                          IconButton(
-                              icon: const Icon(Icons.edit, color: Colors.orange),
-                              onPressed: () => _editPost(post, () {
-                                Navigator.pop(context);
-                                _openUserPosts(userId, userName);
-                              })),
-                          Switch(
-                              value: post['is_deleted'] ?? false,
-                              onChanged: (newValue) async {
-                                try {
-                                  await supabase.from('social_posts').update({'is_deleted': newValue}).eq('id', post['id']);
-                                  setDialogState(() => post['is_deleted'] = newValue);
-                                  await AdminLogger.logAction(
-                                    action: "toggle_post_status",
-                                    targetId: post['id'].toString(),
-                                    targetType: "post",
-                                    details: {"new_status": newValue},
-                                  );
-                                } catch (e) {
-                                  _showErrorSnackBar('Failed to update post status: $e');
-                                }
-                              }),
-                        ],
-                      ),
-                      children: comments.isEmpty
-                          ? [const ListTile(title: Text('No comments found.'))]
-                          : comments
-                          .map((comment) => ListTile(
-                        title: Text(comment['comment'] ?? ''),
-                        subtitle: Text('By: ${comment['user_name'] ?? 'Anonymous'}'),
-                      ))
-                          .toList(),
-                    ),
-                  );
-                },
-              ),
-            ),
-            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
-          ),
-        ),
-      );
-    } catch (e) {
-      Navigator.pop(context);
-      _showErrorSnackBar('Failed to open user posts: $e');
-    }
   }
 
   Widget _buildUserTile(Map<String, dynamic> user) {

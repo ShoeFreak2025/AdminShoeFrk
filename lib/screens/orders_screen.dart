@@ -68,7 +68,6 @@ class _OrdersTabState extends State<OrdersTab> {
       final logRes = await supabase.functions.invoke(
         'log_action',
         body: {
-          'admin_id': supabase.auth.currentUser?.id,
           'action': 'update_order_status',
           'target_id': orderId,
           'target_type': 'order',

@@ -159,12 +159,9 @@ class _ReleasePayoutScreenState extends State<ReleasePayoutScreen>
 
     _showLoadingDialog('Releasing payment...');
 
-    final url = Uri.parse(
-        'https://mnrqpptcreskqnynhevx.supabase.co/functions/v1/release-to-seller');
-
     try {
       final response = await http.post(
-        url,
+        Uri.parse('https://mnrqpptcreskqnynhevx.supabase.co/functions/v1/release-to-seller'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${session.accessToken}',
@@ -173,26 +170,37 @@ class _ReleasePayoutScreenState extends State<ReleasePayoutScreen>
       );
 
       final result = _parseJson(response.body);
-      Navigator.of(context).pop();
 
-      if (response.statusCode == 200) {
-        _showSuccessDialog('Seller paid successfully', Icons.payments);
-
-        await supabase.functions.invoke(
-          'log_action',
-          body: {
-            'admin_id': session.user.id,
-            'action': 'release_payout',
-            'target_id': transactionId,
-            'target_type': 'transaction',
-            'details': {'result': result},
-          },
-        );
-
-        _loadPendingTransactions();
-      } else {
+      if (response.statusCode != 200) {
+        Navigator.of(context).pop();
         _showErrorDialog(result['error'] ?? 'Operation failed');
+        return;
       }
+
+      final logResponse = await http.post(
+        Uri.parse('https://mnrqpptcreskqnynhevx.supabase.co/functions/v1/log_action'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${session.accessToken}',
+        },
+        body: jsonEncode({
+          'action': 'release_payout',
+          'target_id': transactionId,
+          'target_type': 'transaction',
+          'details': {'result': result},
+        }),
+      );
+
+      if (logResponse.statusCode != 200) {
+        Navigator.of(context).pop();
+        _showErrorDialog('Release failed: Could not log action');
+        debugPrint('❌ log_action failed: ${logResponse.body}');
+        return;
+      }
+
+      Navigator.of(context).pop();
+      _showSuccessDialog('Seller paid successfully', Icons.payments);
+      _loadPendingTransactions();
     } catch (e) {
       Navigator.of(context).pop();
       debugPrint('❌ Error releasing payout: $e');
@@ -214,8 +222,7 @@ class _ReleasePayoutScreenState extends State<ReleasePayoutScreen>
       }
 
       final String typeofSeller = txn['typeofSeller'] as String;
-      final endpoint =
-      (typeofSeller.toLowerCase() == 'seller') ? 'Refund' : 'Refund-Artist';
+      final endpoint = (typeofSeller.toLowerCase() == 'seller') ? 'Refund' : 'Refund-Artist';
 
       final session = supabase.auth.currentSession;
       if (session == null) {
@@ -225,11 +232,8 @@ class _ReleasePayoutScreenState extends State<ReleasePayoutScreen>
 
       _showLoadingDialog('Processing refund...');
 
-      final url = Uri.parse(
-          'https://mnrqpptcreskqnynhevx.supabase.co/functions/v1/$endpoint');
-
       final response = await http.post(
-        url,
+        Uri.parse('https://mnrqpptcreskqnynhevx.supabase.co/functions/v1/$endpoint'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${session.accessToken}',
@@ -238,29 +242,40 @@ class _ReleasePayoutScreenState extends State<ReleasePayoutScreen>
       );
 
       final result = _parseJson(response.body);
-      Navigator.of(context).pop();
 
-      if (response.statusCode == 200) {
-        _showSuccessDialog('Buyer refunded successfully', Icons.refresh);
-
-        await supabase.functions.invoke(
-          'log_action',
-          body: {
-            'admin_id': session.user.id,
-            'action': 'refund_buyer',
-            'target_id': transactionId,
-            'target_type': 'transaction',
-            'details': {
-              'typeofSeller': typeofSeller,
-              'result': result,
-            },
-          },
-        );
-
-        _loadPendingTransactions();
-      } else {
+      if (response.statusCode != 200) {
+        Navigator.of(context).pop();
         _showErrorDialog(result['error'] ?? 'Refund failed');
+        return;
       }
+
+      final logResponse = await http.post(
+        Uri.parse('https://mnrqpptcreskqnynhevx.supabase.co/functions/v1/log_action'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${session.accessToken}',
+        },
+        body: jsonEncode({
+          'action': 'refund_buyer',
+          'target_id': transactionId,
+          'target_type': 'transaction',
+          'details': {
+            'typeofSeller': typeofSeller,
+            'result': result,
+          },
+        }),
+      );
+
+      if (logResponse.statusCode != 200) {
+        Navigator.of(context).pop();
+        _showErrorDialog('Refund failed: Could not log action');
+        debugPrint('❌ log_action failed: ${logResponse.body}');
+        return;
+      }
+
+      Navigator.of(context).pop();
+      _showSuccessDialog('Buyer refunded successfully', Icons.refresh);
+      _loadPendingTransactions();
     } catch (e) {
       Navigator.of(context).pop();
       debugPrint('❌ Error refunding buyer: $e');

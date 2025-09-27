@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:shoefrk_admin/models/dashboard_stats.dart';
 import 'package:shoefrk_admin/screens/ReleasePayoutScreen.dart';
 import 'package:shoefrk_admin/screens/product_screen.dart';
@@ -767,7 +768,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       },
       {
         'title': 'Admin Wallet',
-        'value': '₱${_stats!.adminWallet.toStringAsFixed(2)}',
+        'value': '₱${NumberFormat('#,##0.00').format(_stats!.adminWallet)}',
         'icon': Icons.savings,
         'color': Colors.teal,
         'gradient': [Colors.teal.shade600, Colors.teal.shade400],

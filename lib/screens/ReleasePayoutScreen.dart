@@ -1144,7 +1144,14 @@ class _EnhancedTransactionCardState extends State<_EnhancedTransactionCard>
           ),
           child: Row(
             children: [
-              Icon(Icons.attach_money, color: Colors.purple.shade600, size: 24),
+              Text(
+                "₱",
+                style: TextStyle(
+                  color: Colors.purple.shade600,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

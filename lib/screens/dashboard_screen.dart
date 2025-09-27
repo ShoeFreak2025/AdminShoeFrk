@@ -94,8 +94,12 @@ class _AdminLogsDialogState extends State<AdminLogsDialog> {
           .order('created_at', ascending: false)
           .limit(50);
 
+      final logs = (response as List)
+          .map((log) => AdminLog.fromJson(Map<String, dynamic>.from(log)))
+          .toList();
+
       setState(() {
-        _logs = response.map((log) => AdminLog.fromJson(log)).toList();
+        _logs = logs;
         _isLoading = false;
       });
     } catch (e) {
@@ -551,7 +555,8 @@ class _DashboardScreenState extends State<DashboardScreen>
           .order('created_at', ascending: false)
           .limit(5);
 
-      final recentLogs = logsResponse.map((log) => AdminLog.fromJson(log))
+      final recentLogs = (logsResponse as List)
+          .map((log) => AdminLog.fromJson(Map<String, dynamic>.from(log)))
           .toList();
 
       setState(() {

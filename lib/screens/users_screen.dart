@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shoefrk_admin/utils/admin_logger.dart';
 import 'package:shoefrk_admin/utils/responsive_util.dart';
+import 'package:shoefrk_admin/utils/session_manager.dart';
 import 'package:shoefrk_admin/widgets/sidebar_widget.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
@@ -107,6 +108,8 @@ class _UsersScreenState extends State<UsersScreen> {
   }
 
   Future<void> _editUserRoles(Map<String, dynamic> user) async {
+    final bool isSuperAdmin = SessionManager.isSuperAdmin;
+
     List<String> currentRoles = List<String>.from(user['role'] ?? []);
     const allRoles = ['buyer', 'seller', 'artist', 'admin'];
 
@@ -121,11 +124,23 @@ class _UsersScreenState extends State<UsersScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: allRoles.map((role) {
+                    final isAdminRole = role == 'admin';
+                    final isDisabled = !isSuperAdmin && isAdminRole;
+
                     return CheckboxListTile(
-                      title: Text(role),
+                      title: Text(
+                        role,
+                        style: TextStyle(
+                          color: isDisabled ? Colors.grey : Colors.black,
+                          fontWeight:
+                          isAdminRole ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
                       value: currentRoles.contains(role),
                       onChanged: (selected) {
                         setDialogState(() {
+                          if (isDisabled) return;
+
                           if (selected == true) {
                             currentRoles.add(role);
                           } else {
@@ -140,8 +155,14 @@ class _UsersScreenState extends State<UsersScreen> {
             },
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            ElevatedButton(onPressed: () => Navigator.pop(context, currentRoles), child: const Text('Save')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, currentRoles),
+              child: const Text('Save'),
+            ),
           ],
         );
       },
@@ -149,10 +170,20 @@ class _UsersScreenState extends State<UsersScreen> {
 
     if (updatedRoles != null) {
       try {
+        if (!isSuperAdmin) {
+          final originalHasAdmin = currentRoles.contains('admin');
+          final updatedHasAdmin = updatedRoles.contains('admin');
+          if (originalHasAdmin != updatedHasAdmin) {
+            _showErrorSnackBar("Only super admin can change admin privileges.");
+            return;
+          }
+        }
+
         await supabase.from('users').update({
           'role': updatedRoles,
           'is_admin': updatedRoles.contains('admin'),
         }).eq('id', user['id']);
+
         _loadUsers();
 
         final admin = supabase.auth.currentUser;
@@ -163,11 +194,17 @@ class _UsersScreenState extends State<UsersScreen> {
           details: {
             "previous_roles": user['role'],
             "updated_roles": updatedRoles,
-            "is_admin_now": updatedRoles.contains('admin'),
             "performed_by": admin?.id,
             "performed_at": DateTime.now().toIso8601String(),
+            "is_super_admin": isSuperAdmin,
           },
         );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("User roles updated successfully")),
+          );
+        }
       } catch (e) {
         _showErrorSnackBar('Failed to update roles: $e');
       }
@@ -734,17 +771,72 @@ class _UsersScreenState extends State<UsersScreen> {
                         ),
                       ],
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Text(
+                        const Text(
                           'Manage Users',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                        const SizedBox(width: 12),
+                        if (SessionManager.isSuperAdmin)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFFFB74D), Color(0xFFF57C00)],
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.orange.withOpacity(0.4),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.verified, color: Colors.white, size: 16),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Super Admin',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.blueGrey.shade600,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.admin_panel_settings, color: Colors.white, size: 15),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Admin',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                       ],
-                    ),
+                    )
                   ),
                 Expanded(child: _buildBody()),
               ],

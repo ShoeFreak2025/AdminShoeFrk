@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:shoefrk_admin/utils/session_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shoefrk_admin/utils/responsive_util.dart';
 
@@ -51,7 +52,28 @@ class _LoginScreenState extends State<LoginScreen>
       _loginSuccess = false;
     });
 
+    const superAdminEmail = "superadmin@shoefreak.com";
+    const superAdminPassword = "SuperSecret123";
+
     try {
+      if (_emailController.text.trim() == superAdminEmail &&
+          _passwordController.text == superAdminPassword) {
+        debugPrint("🧑‍💼 Superadmin logged in locally!");
+
+        SessionManager.isSuperAdmin = true;
+        SessionManager.superAdminEmail = superAdminEmail;
+
+        setState(() {
+          _loginSuccess = true;
+        });
+
+        await Future.delayed(const Duration(seconds: 1));
+        if (!mounted) return;
+
+        Navigator.pushReplacementNamed(context, '/dashboard');
+        return;
+      }
+
       final response = await supabase.auth.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
@@ -62,9 +84,9 @@ class _LoginScreenState extends State<LoginScreen>
             .from('users')
             .select('is_admin')
             .eq('id', response.user!.id)
-            .single();
+            .maybeSingle();
 
-        if (userResponse['is_admin'] != true) {
+        if (userResponse == null || userResponse['is_admin'] != true) {
           await supabase.auth.signOut();
           setState(() {
             _errorMessage = 'Access denied. Admin privileges required.';
@@ -73,25 +95,19 @@ class _LoginScreenState extends State<LoginScreen>
           return;
         }
 
-        setState(() {
-          _loginSuccess = true;
-        });
+        setState(() => _loginSuccess = true);
 
         await Future.delayed(const Duration(seconds: 1));
         if (!mounted) return;
+
+        Navigator.pushReplacementNamed(context, '/dashboard');
       }
     } on AuthException catch (error) {
-      setState(() {
-        _errorMessage = error.message;
-      });
-    } catch (_) {
-      setState(() {
-        _errorMessage = 'An unexpected error occurred';
-      });
+      setState(() => _errorMessage = error.message);
+    } catch (e) {
+      setState(() => _errorMessage = 'An unexpected error occurred: $e');
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

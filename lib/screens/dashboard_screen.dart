@@ -15,6 +15,7 @@ import 'package:shimmer/shimmer.dart';
 class AdminLog {
   final int id;
   final String adminId;
+  String? adminName;
   final String action;
   final String? targetId;
   final String? targetType;
@@ -24,6 +25,7 @@ class AdminLog {
   AdminLog({
     required this.id,
     required this.adminId,
+    this.adminName,
     required this.action,
     this.targetId,
     this.targetType,
@@ -35,10 +37,13 @@ class AdminLog {
     return AdminLog(
       id: json['id'],
       adminId: json['admin_id'],
+      adminName: json['admin']?['full_name'],
       action: json['action'],
       targetId: json['target_id'],
       targetType: json['target_type'],
-      details: json['details'] != null ? Map<String, dynamic>.from(json['details']) : null,
+      details: json['details'] != null
+          ? Map<String, dynamic>.from(json['details'])
+          : null,
       createdAt: DateTime.parse(json['created_at']),
     );
   }
@@ -83,10 +88,7 @@ class _AdminLogsDialogState extends State<AdminLogsDialog> {
     setState(() => _isLoading = true);
 
     try {
-      var query = supabase
-          .from('admin_logs')
-          .select('*');
-
+      var query = supabase.from('admin_logs').select('*');
       if (_selectedFilter != 'ALL') {
         query = query.eq('action', _selectedFilter);
       }
@@ -94,10 +96,23 @@ class _AdminLogsDialogState extends State<AdminLogsDialog> {
       final response = await query
           .order('created_at', ascending: false)
           .limit(50);
-
       final logs = (response as List)
           .map((log) => AdminLog.fromJson(Map<String, dynamic>.from(log)))
           .toList();
+
+      final adminIds = logs.map((e) => e.adminId).toSet().toList();
+      final adminsResponse = await supabase
+          .from('users')
+          .select('id, full_name')
+          .in_('id', adminIds);
+      final adminMap = {
+        for (var a in adminsResponse)
+          a['id']: a['full_name']
+      };
+
+      for (var log in logs) {
+        log.adminName = adminMap[log.adminId];
+      }
 
       setState(() {
         _logs = logs;
@@ -270,7 +285,9 @@ class _AdminLogsDialogState extends State<AdminLogsDialog> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Admin ID: ${log.adminId}',
+                        log.adminName != null
+                            ? 'Performed by: ${log.adminName}'
+                            : 'Admin ID: ${log.adminId}',
                         style: TextStyle(
                           color: Colors.grey.shade600,
                           fontSize: 12,
@@ -402,12 +419,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   late AnimationController _fadeController;
   late AnimationController _slideController;
   late AnimationController _scaleController;
-  late AnimationController _pulseController;
-
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _scaleAnimation;
-  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
@@ -432,11 +446,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       vsync: this,
     );
 
-    _pulseController = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    );
-
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
     );
@@ -451,11 +460,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       CurvedAnimation(parent: _scaleController, curve: Curves.elasticOut),
     );
 
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-
-    _pulseController.repeat(reverse: true);
   }
 
   @override
@@ -463,7 +467,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     _fadeController.dispose();
     _slideController.dispose();
     _scaleController.dispose();
-    _pulseController.dispose();
     super.dispose();
   }
 
@@ -804,91 +807,83 @@ class _DashboardScreenState extends State<DashboardScreen>
       itemCount: stats.length,
       itemBuilder: (context, index) {
         final stat = stats[index];
-        return AnimatedBuilder(
-          animation: _pulseAnimation,
-          builder: (context, child) {
-            return Transform.scale(
-              scale: index == 0 ? _pulseAnimation.value : 1.0,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: stat['gradient'] as List<Color>,
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: (stat['color'] as Color).withOpacity(0.3),
-                      blurRadius: 15,
-                      offset: const Offset(0, 8),
-                      spreadRadius: 0,
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: stat['gradient'] as List<Color>,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: (stat['color'] as Color).withOpacity(0.3),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white.withOpacity(0.1),
+                  Colors.transparent,
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        stat['icon'] as IconData,
+                        color: Colors.white,
+                        size: 24,
+                      ),
                     ),
+                    const Spacer(),
+                    if (stat['title'] == 'Total Revenue')
+                      Icon(
+                        Icons.trending_up,
+                        color: Colors.white.withOpacity(0.7),
+                        size: 16,
+                      ),
                   ],
                 ),
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.white.withOpacity(0.1),
-                        Colors.transparent,
-                      ],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              stat['icon'] as IconData,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                          ),
-                          const Spacer(),
-                          if (stat['title'] == 'Total Revenue')
-                            Icon(
-                              Icons.trending_up,
-                              color: Colors.white.withOpacity(0.7),
-                              size: 16,
-                            ),
-                        ],
-                      ),
-                      const Spacer(),
-                      Text(
-                        stat['value'] as String,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        stat['title'] as String,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white.withOpacity(0.9),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
+                const Spacer(),
+                Text(
+                  stat['value'] as String,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
-              ),
-            );
-          },
+                const SizedBox(height: 4),
+                Text(
+                  stat['title'] as String,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.9),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -921,18 +916,10 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
         elevation: 0,
         actions: [
-          AnimatedBuilder(
-            animation: _pulseAnimation,
-            builder: (context, child) {
-              return Transform.scale(
-                scale: _pulseAnimation.value,
-                child: IconButton(
-                  icon: const Icon(Icons.refresh, color: Colors.white),
-                  onPressed: _loadDashboardData,
-                  tooltip: 'Refresh Data',
-                ),
-              );
-            },
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: _loadDashboardData,
+            tooltip: 'Refresh Data',
           ),
           const SizedBox(width: 8),
           Container(
@@ -1399,22 +1386,13 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
       child: Row(
         children: [
-          AnimatedBuilder(
-            animation: _pulseAnimation,
-            builder: (context, child) {
-              return Transform.scale(
-                scale: _pulseAnimation.value,
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(
-                      Icons.dashboard, size: 48, color: Colors.white),
-                ),
-              );
-            },
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.dashboard, size: 48, color: Colors.white),
           ),
           const SizedBox(width: 20),
           Expanded(

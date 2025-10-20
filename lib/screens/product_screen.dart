@@ -13,10 +13,12 @@ class ProductScreen extends StatefulWidget {
 
   @override
   State<ProductScreen> createState() => _ProductScreenState();
+
 }
 
 class _ProductScreenState extends State<ProductScreen>
     with TickerProviderStateMixin {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late TabController _tabController;
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -248,6 +250,8 @@ class _ProductScreenState extends State<ProductScreen>
   }
 
   Widget _buildHeader() {
+    final bool showHamburger = !ResponsiveUtil.isDesktop(context);
+
     return SlideTransition(
       position: _slideAnimation,
       child: FadeTransition(
@@ -279,96 +283,113 @@ class _ProductScreenState extends State<ProductScreen>
               ),
             ],
           ),
-          child: Stack(
+          child: Column(
             children: [
-              Positioned(
-                top: -20,
-                right: -20,
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.1),
+              Container(
+                height: ResponsiveUtil.responsiveValue(
+                  context: context,
+                  mobile: 55,
+                  tablet: 60,
+                  desktop: 65,
+                ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: ResponsiveUtil.responsiveValue(
+                    context: context,
+                    mobile: 16.0,
+                    tablet: 20.0,
+                    desktop: 24.0,
                   ),
                 ),
-              ),
-              Positioned(
-                bottom: -30,
-                left: -30,
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.05),
-                  ),
-                ),
-              ),
-              Column(
-                children: [
-                  Container(
-                    height: ResponsiveUtil.responsiveValue(
-                      context: context,
-                      mobile: 55,
-                      tablet: 60,
-                      desktop: 65,
-                    ),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: ResponsiveUtil.responsiveValue(
-                        context: context,
-                        mobile: 16.0,
-                        tablet: 20.0,
-                        desktop: 24.0,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (showHamburger)
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(24),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Icon(
+                              Icons.menu,
+                              color: Colors.white,
+                              size: ResponsiveUtil.responsiveValue(
+                                context: context,
+                                mobile: 24,
+                                tablet: 24,
+                                desktop: 24,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (showHamburger)
+                      const SizedBox(width: 4),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.inventory,
+                        color: Colors.white,
+                        size: ResponsiveUtil.responsiveValue(
+                          context: context,
+                          mobile: 24,
+                          tablet: 28,
+                          desktop: 32,
+                        ),
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        if (!ResponsiveUtil.isDesktop(context))
-                          Builder(
-                            builder: (context) => IconButton(
-                              icon: const Icon(Icons.menu, color: Colors.white),
-                              onPressed: () => Scaffold.of(context).openDrawer(),
-                            ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        'Manage Products',
+                        style: TextStyle(
+                          fontSize: ResponsiveUtil.responsiveValue(
+                            context: context,
+                            mobile: 20,
+                            tablet: 24,
+                            desktop: 28,
                           ),
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            Icons.inventory,
-                            color: Colors.white,
-                            size: ResponsiveUtil.responsiveValue(
-                              context: context,
-                              mobile: 24,
-                              tablet: 28,
-                              desktop: 32,
-                            ),
-                          ),
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Text(
-                            'Manage Products',
-                            style: TextStyle(
-                              fontSize: ResponsiveUtil.responsiveValue(
-                                context: context,
-                                mobile: 20,
-                                tablet: 24,
-                                desktop: 28,
-                              ),
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ],
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: Container(
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Stack(
+                  children: [
+                    Positioned(
+                      top: -20,
+                      right: -20,
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withOpacity(0.1),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: -30,
+                      left: -30,
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withOpacity(0.05),
+                        ),
+                      ),
+                    ),
+                    Container(
                       padding: EdgeInsets.symmetric(
                         horizontal: ResponsiveUtil.responsiveValue(
                           context: context,
@@ -424,8 +445,8 @@ class _ProductScreenState extends State<ProductScreen>
                             MediaQuery.of(context).size.width),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -469,6 +490,8 @@ class _ProductScreenState extends State<ProductScreen>
 
   @override
   Widget build(BuildContext context) {
+    final bool showDrawer = !ResponsiveUtil.isDesktop(context);
+
     if (widget.onNavigate != null) {
       return Column(
         children: [
@@ -479,7 +502,8 @@ class _ProductScreenState extends State<ProductScreen>
     }
 
     return Scaffold(
-      drawer: ResponsiveUtil.isMobile(context)
+      key: _scaffoldKey,
+      drawer: showDrawer
           ? SidebarWidget(
         onNavigate: _handleNavigation,
         currentRoute: 'products',

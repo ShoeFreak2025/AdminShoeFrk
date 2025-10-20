@@ -59,11 +59,24 @@ class _OrdersTabState extends State<OrdersTab> {
         String? trackingNumber,
       }) async {
     try {
-      await supabase.from('orders').update({
+      final session = supabase.auth.currentSession;
+      final accessToken = session?.accessToken;
+
+      final updateRes = await supabase
+          .from('orders')
+          .update({
         'status': status.name,
         if (trackingNumber != null) 'tracking_number': trackingNumber,
         'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', orderId);
+      })
+          .eq('id', orderId)
+          .select();
+
+      if (updateRes.isEmpty) {
+        debugPrint('⚠️ No order updated. Check order_id or RLS.');
+      } else {
+        debugPrint('✅ Order updated successfully.');
+      }
 
       final logRes = await supabase.functions.invoke(
         'log_action',
@@ -75,6 +88,10 @@ class _OrdersTabState extends State<OrdersTab> {
             'new_status': status.name,
             if (trackingNumber != null) 'tracking_number': trackingNumber,
           },
+        },
+        headers: {
+          'Content-Type': 'application/json',
+          if (accessToken != null) 'Authorization': 'Bearer $accessToken',
         },
       );
 
